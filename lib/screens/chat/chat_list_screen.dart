@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -53,11 +54,21 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
         ChatListService.instance.getChannels(),
         ChatListService.instance.getConversations(),
       ]);
+      final channels = results[0] as List<ChannelModel>;
+      final conversations = results[1] as List<DmConversation>;
       setState(() {
-        _channels = results[0] as List<ChannelModel>;
-        _conversations = results[1] as List<DmConversation>;
+        _channels = channels;
+        _conversations = conversations;
         _isLoading = false;
       });
+      // Backend doesn't push a socket event when messages are marked read,
+      // so sync the bottom-nav badge directly from what we just fetched —
+      // this is the moment the displayed unread counts are authoritative.
+      if (mounted) {
+        final total = channels.fold<int>(0, (s, c) => s + c.unreadCount) +
+            conversations.fold<int>(0, (s, c) => s + c.unreadCount);
+        context.read<NavProvider>().setChatUnreadCount(total);
+      }
     } catch (e) {
       setState(() {
         _error = e is ApiException ? e.message : 'Could not load chats.';
@@ -158,6 +169,38 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     );
   }
 
+  /// Shows the channel's actual logo image when it has one set, otherwise
+  /// falls back to the "#" placeholder.
+  Widget _channelLeading(ChannelModel channel) {
+    final hasImage = channel.image.trim().isNotEmpty;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: hasImage
+          ? CachedNetworkImage(
+              imageUrl: channel.image,
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => _channelPlaceholder(),
+              errorWidget: (_, __, ___) => _channelPlaceholder(),
+            )
+          : _channelPlaceholder(),
+    );
+  }
+
+  Widget _channelPlaceholder() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: const BoxDecoration(color: AppColors.primaryTint),
+      alignment: Alignment.center,
+      child: const Text(
+        '#',
+        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 18),
+      ),
+    );
+  }
+
   Widget _buildChannelsTab() {
     final channels = _filteredChannels;
     if (channels.isEmpty) {
@@ -174,31 +217,25 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
           final channel = channels[index];
           return ListTile(
             onTap: () => _openChannel(channel.id, channel.name),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(12)),
-              alignment: Alignment.center,
-              child: Text(
-                '#',
-                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 18),
-              ),
-            ),
-            title: Text(channel.name, style: AppText.bodyLarge),
+            leading: _channelLeading(channel),
+            title: Text(channel.name, style: AppText.bodyLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(
               channel.lastMessageText?.isNotEmpty == true ? channel.lastMessageText! : channel.description,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.bodyMuted,
             ),
-            trailing: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_formatTime(channel.lastMessageAt), style: AppText.caption),
-                const SizedBox(height: 6),
-                UnreadBadge(count: channel.unreadCount),
-              ],
+            trailing: SizedBox(
+              width: 60,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_formatTime(channel.lastMessageAt), style: AppText.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  UnreadBadge(count: channel.unreadCount),
+                ],
+              ),
             ),
           );
         },
@@ -223,21 +260,24 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
           return ListTile(
             onTap: () => _openDm(conv.partnerId, conv.partner.name, conv.partner.avatar),
             leading: AppAvatar(name: conv.partner.name, imageUrl: conv.partner.avatar, size: 44),
-            title: Text(conv.partner.name, style: AppText.bodyLarge),
+            title: Text(conv.partner.name, style: AppText.bodyLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(
               conv.lastMessageText ?? '',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.bodyMuted,
             ),
-            trailing: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_formatTime(conv.lastMessageAt), style: AppText.caption),
-                const SizedBox(height: 6),
-                UnreadBadge(count: conv.unreadCount),
-              ],
+            trailing: SizedBox(
+              width: 60,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_formatTime(conv.lastMessageAt), style: AppText.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  UnreadBadge(count: conv.unreadCount),
+                ],
+              ),
             ),
           );
         },

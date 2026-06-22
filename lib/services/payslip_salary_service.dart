@@ -55,8 +55,7 @@ class PayslipSalaryService {
   }
 
   /// For employees: returns sheets containing only their own row.
-  /// For admins: returns every uploaded sheet in full (read-only on mobile —
-  /// CSV upload stays a web-only action).
+  /// For admins: returns every uploaded sheet in full.
   Future<List<SalarySheetModel>> getSalarySheets() async {
     final res = await _api.get(ApiConstants.salarySheet);
     final list = res['sheets'];
@@ -64,6 +63,29 @@ class PayslipSalaryService {
       return list.map((s) => SalarySheetModel.fromJson(Map<String, dynamic>.from(s))).toList();
     }
     return [];
+  }
+
+  /// Admin/SuperAdmin — uploads a salary CSV for the whole company for a
+  /// given month/year, matching the web app's SalarySheet.jsx exactly.
+  /// Required CSV headers: EmpId, Email, Name, Position, Gross Salary,
+  /// Attendance, Total Absent, In Hand Salary, Ptax, Remarks.
+  Future<void> uploadSalarySheetCsv({
+    required File csvFile,
+    required int month,
+    required int year,
+    String title = '',
+  }) async {
+    final formData = FormData.fromMap({
+      'month': month,
+      'year': year,
+      'title': title,
+      'file': await MultipartFile.fromFile(csvFile.path, filename: csvFile.path.split('/').last),
+    });
+    await ApiClient.instance.dio.post(ApiConstants.salarySheetUpload, data: formData);
+  }
+
+  Future<void> deleteSalarySheet(String id) async {
+    await _api.delete(ApiConstants.salarySheetDelete(id));
   }
 
   /// Downloads a payslip to a local temp file. The endpoint requires the

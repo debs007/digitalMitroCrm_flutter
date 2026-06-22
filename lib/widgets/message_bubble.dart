@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/file_download_helper.dart';
 import '../models/message_model.dart';
+import '../screens/chat/image_preview_screen.dart';
+import '../screens/chat/pdf_preview_screen.dart';
+import '../screens/chat/video_preview_screen.dart';
 import 'linkify_text.dart';
+import 'task_message_card.dart';
 
 bool _isImageUrl(String url) =>
     RegExp(r'\.(jpg|jpeg|png|gif|webp)(\?.*)?$', caseSensitive: false).hasMatch(url);
+bool _isVideoUrl(String url) =>
+    RegExp(r'\.(mp4|mov|avi|mkv|webm)(\?.*)?$', caseSensitive: false).hasMatch(url);
+bool _isPdfUrl(String url) =>
+    RegExp(r'\.pdf(\?.*)?$', caseSensitive: false).hasMatch(url);
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
@@ -70,6 +80,9 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message.isSystem) {
+      if (message.taskSnapshot != null) {
+        return TaskMessageCard(message: message);
+      }
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         alignment: Alignment.center,
@@ -144,7 +157,7 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (message.hasAttachments) _buildAttachments(),
+              if (message.hasAttachments) _buildAttachments(context),
               if (message.isDeleted)
                 Text(
                   'This message was deleted',
@@ -183,9 +196,21 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildAttachments() {
+  Widget _buildAttachments(BuildContext context) {
     final images = message.attachments.where(_isImageUrl).toList();
-    final files = message.attachments.where((a) => !_isImageUrl(a)).toList();
+    final videos = message.attachments.where(_isVideoUrl).toList();
+    final otherFiles = message.attachments
+        .where((a) => !_isImageUrl(a) && !_isVideoUrl(a))
+        .toList();
+
+    String fileNameOf(String url) {
+      // Backend appends ?filename=original.ext to chat uploads.
+      final uri = Uri.tryParse(url);
+      final fromQuery = uri?.queryParameters['filename'];
+      if (fromQuery != null && fromQuery.isNotEmpty) return fromQuery;
+      final segments = uri?.pathSegments ?? [];
+      return segments.isNotEmpty ? segments.last : 'Attachment';
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -196,47 +221,119 @@ class MessageBubble extends StatelessWidget {
             Wrap(
               spacing: 4,
               runSpacing: 4,
-              children: images.map((url) => ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: url,
-                  width: 140,
-                  height: 140,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(width: 140, height: 140, color: AppColors.neutralBg),
-                  errorWidget: (_, __, ___) => Container(
-                    width: 140,
-                    height: 140,
-                    color: AppColors.neutralBg,
-                    child: const Icon(Icons.broken_image_outlined),
-                  ),
+              children: images.map((url) => GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ImagePreviewScreen(imageUrl: url)),
+                ),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        width: 140,
+                        height: 140,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(width: 140, height: 140, color: AppColors.neutralBg),
+                        errorWidget: (_, __, ___) => Container(
+                          width: 140,
+                          height: 140,
+                          color: AppColors.neutralBg,
+                          child: const Icon(Icons.broken_image_outlined),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: _downloadDot(context, url, fileNameOf(url)),
+                    ),
+                  ],
                 ),
               )).toList(),
             ),
-          ...files.map((url) {
-            final segments = Uri.tryParse(url)?.pathSegments ?? [];
-            final fileLabel = segments.isNotEmpty ? segments.last : 'Attachment';
+          ...videos.map((url) => Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => VideoPreviewScreen(url: url)),
+              ),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 140,
+                    height: 100,
+                    decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10)),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
+                  ),
+                  Positioned(
+                    right: 4,
+                    bottom: 4,
+                    child: _downloadDot(context, url, fileNameOf(url)),
+                  ),
+                ],
+              ),
+            ),
+          )),
+          ...otherFiles.map((url) {
+            final fileLabel = fileNameOf(url);
+            final isPdf = _isPdfUrl(url);
             return Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.insert_drive_file_outlined, size: 16),
-                  const SizedBox(width: 6),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 160),
-                    child: Text(
-                      fileLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
+                  GestureDetector(
+                    onTap: isPdf
+                        ? () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => PdfPreviewScreen(url: url, title: fileLabel)),
+                            )
+                        : () async {
+                            final uri = Uri.tryParse(url);
+                            if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(isPdf ? Icons.picture_as_pdf_outlined : Icons.insert_drive_file_outlined, size: 16),
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 140),
+                          child: Text(
+                            fileLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, decoration: TextDecoration.underline),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.download_outlined, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => downloadAttachment(context, url, fileLabel),
                   ),
                 ],
               ),
             );
           }),
         ],
+      ),
+    );
+  }
+
+  Widget _downloadDot(BuildContext context, String url, String fileName) {
+    return GestureDetector(
+      onTap: () => downloadAttachment(context, url, fileName),
+      child: Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: const Icon(Icons.download_outlined, color: Colors.white, size: 14),
       ),
     );
   }

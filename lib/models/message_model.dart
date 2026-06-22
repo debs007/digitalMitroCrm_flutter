@@ -17,6 +17,50 @@ class ReplyPreview {
   }
 }
 
+/// Snapshot of a task at the moment a system message was posted about it
+/// (created, completed, status/priority/deadline changed) — lets the chat
+/// UI render a rich task card instead of a plain text bubble.
+class TaskSnapshot {
+  final String taskId;
+  final String taskNumber;
+  final String title;
+  final String status;
+  final String priority;
+  final DateTime? deadline;
+  final String? assignedToName;
+
+  TaskSnapshot({
+    required this.taskId,
+    required this.taskNumber,
+    required this.title,
+    required this.status,
+    required this.priority,
+    this.deadline,
+    this.assignedToName,
+  });
+
+  factory TaskSnapshot.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      try {
+        return DateTime.parse(v.toString());
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return TaskSnapshot(
+      taskId: (json['taskId'] ?? '').toString(),
+      taskNumber: json['taskNumber']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      priority: json['priority']?.toString() ?? '',
+      deadline: parseDate(json['deadline']),
+      assignedToName: json['assignedToName']?.toString(),
+    );
+  }
+}
+
 /// One chat message — used for both DM (DirectMessage) and Channel
 /// (ChannelMessage) since the two schemas are almost identical.
 /// [channelId] is null for DMs; [receiverId] is null for channel messages.
@@ -38,6 +82,7 @@ class ChatMessage {
   final DateTime? editedAt;
   final bool isDeleted;
   final bool isSystem;
+  final TaskSnapshot? taskSnapshot;
   final DateTime createdAt;
 
   ChatMessage({
@@ -58,6 +103,7 @@ class ChatMessage {
     this.editedAt,
     required this.isDeleted,
     required this.isSystem,
+    this.taskSnapshot,
     required this.createdAt,
   });
 
@@ -105,7 +151,42 @@ class ChatMessage {
       editedAt: parseDate(json['editedAt']),
       isDeleted: json['isDeleted'] == true,
       isSystem: json['isSystem'] == true,
+      taskSnapshot: (json['taskSnapshot'] is Map && (json['taskSnapshot'] as Map)['taskId'] != null)
+          ? TaskSnapshot.fromJson(Map<String, dynamic>.from(json['taskSnapshot']))
+          : null,
       createdAt: parseDate(json['createdAt']) ?? DateTime.now(),
+    );
+  }
+
+  /// Used for optimistic local updates right after a successful edit/
+  /// delete/pin API call — don't wait on the socket echo to update your
+  /// own screen, only rely on sockets for changes from other devices/users.
+  ChatMessage copyWith({
+    String? message,
+    bool? isPinned,
+    DateTime? editedAt,
+    bool? isDeleted,
+  }) {
+    return ChatMessage(
+      id: id,
+      senderId: senderId,
+      receiverId: receiverId,
+      channelId: channelId,
+      message: message ?? this.message,
+      attachments: attachments,
+      mentions: mentions,
+      isPinned: isPinned ?? this.isPinned,
+      pinnedBy: pinnedBy,
+      pinnedAt: pinnedAt,
+      replyPreview: replyPreview,
+      replyTo: replyTo,
+      seen: seen,
+      seenBy: seenBy,
+      editedAt: editedAt ?? this.editedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isSystem: isSystem,
+      taskSnapshot: taskSnapshot,
+      createdAt: createdAt,
     );
   }
 }

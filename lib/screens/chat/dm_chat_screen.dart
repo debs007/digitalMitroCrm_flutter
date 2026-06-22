@@ -41,6 +41,10 @@ class _DmChatScreenState extends State<DmChatScreen> {
   String? _error;
   bool _sending = false;
   ChatMessage? _replyingTo;
+  // One GlobalKey per currently-rendered message, so tapping a pinned item
+  // can scroll straight to it instead of just highlighting it in a list.
+  final Map<String, GlobalKey> _bubbleKeys = {};
+  String? _highlightedMessageId;
 
   late String _myId;
   void Function(dynamic)? _onNewMessage;
@@ -101,38 +105,12 @@ class _DmChatScreenState extends State<DmChatScreen> {
         final isPinned = data['isPinned'] == true;
         setState(() {
           final idx = _messages.indexWhere((m) => m.id == id);
-          if (idx != -1) {
-            _messages[idx] = ChatMessage.fromJson({
-              ..._messageToJsonShallow(_messages[idx]),
-              'isPinned': isPinned,
-            });
-          }
+          if (idx != -1) _messages[idx] = _messages[idx].copyWith(isPinned: isPinned);
         });
       }
     };
     socket.on('dm-message-pinned', _onPinned!);
   }
-
-  // Small helper: rebuild a near-identical message with one field patched,
-  // since ChatMessage has no copyWith — this avoids a refetch just to flip isPinned.
-  Map<String, dynamic> _messageToJsonShallow(ChatMessage m) => {
-        '_id': m.id,
-        'sender': m.senderId,
-        'receiver': m.receiverId,
-        'message': m.message,
-        'attachments': m.attachments,
-        'mentions': m.mentions,
-        'isPinned': m.isPinned,
-        'replyPreview': m.replyPreview == null
-            ? null
-            : {'message': m.replyPreview!.message, 'sender': m.replyPreview!.senderId, 'senderName': m.replyPreview!.senderName},
-        'replyTo': m.replyTo,
-        'seen': m.seen,
-        'editedAt': m.editedAt?.toIso8601String(),
-        'isDeleted': m.isDeleted,
-        'isSystem': m.isSystem,
-        'createdAt': m.createdAt.toIso8601String(),
-      };
 
   void _onScroll() {
     if (!_hasMore || _isLoadingMore) return;
@@ -195,6 +173,32 @@ class _DmChatScreenState extends State<DmChatScreen> {
     } catch (_) {}
   }
 
+  /// Scrolls to a pinned message. If it's not in the currently-loaded
+  /// page(s), loads a few more older pages (bounded) before giving up.
+  Future<void> _scrollToMessage(ChatMessage target) async {
+    var attempts = 0;
+    while (!_messages.any((m) => m.id == target.id) && _hasMore && attempts < 5) {
+      await _loadMore();
+      attempts++;
+    }
+
+    final key = _bubbleKeys[target.id];
+    if (key?.currentContext != null) {
+      setState(() => _highlightedMessageId = target.id);
+      await Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 350),
+        alignment: 0.5,
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) setState(() => _highlightedMessageId = null);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't find that message — it may be further back in history.")),
+      );
+    }
+  }
+
   Future<void> _handleSend(String text, File? attachment) async {
     setState(() => _sending = true);
     try {
@@ -240,6 +244,9 @@ class _DmChatScreenState extends State<DmChatScreen> {
     if (newText == null || newText.isEmpty || newText == message.message) return;
     try {
       await MessageService.instance.edit(messageId: message.id, newText: newText);
+      // Update our own screen immediately — don't wait on the socket echo,
+      // it's only needed to sync the OTHER person's screen.
+      _patchMessage(message.id, (m) => m.copyWith(message: newText, editedAt: DateTime.now()));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -267,6 +274,7 @@ class _DmChatScreenState extends State<DmChatScreen> {
     if (confirmed != true) return;
     try {
       await MessageService.instance.delete(message.id);
+      _patchMessage(message.id, (m) => m.copyWith(isDeleted: true, message: 'This message was deleted'));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -278,7 +286,9 @@ class _DmChatScreenState extends State<DmChatScreen> {
 
   Future<void> _handleTogglePin(ChatMessage message) async {
     try {
-      await MessageService.instance.togglePin(message.id);
+      final isPinnedNow = await MessageService.instance.togglePin(message.id);
+      _patchMessage(message.id, (m) => m.copyWith(isPinned: isPinnedNow));
+      _loadPinned();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -286,6 +296,16 @@ class _DmChatScreenState extends State<DmChatScreen> {
         );
       }
     }
+  }
+
+  /// Replaces a message in [_messages] by id with the result of [update] —
+  /// the shared helper behind every optimistic local edit/delete/pin above.
+  void _patchMessage(String id, ChatMessage Function(ChatMessage) update) {
+    if (!mounted) return;
+    setState(() {
+      final idx = _messages.indexWhere((m) => m.id == id);
+      if (idx != -1) _messages[idx] = update(_messages[idx]);
+    });
   }
 
   @override
@@ -305,7 +325,7 @@ class _DmChatScreenState extends State<DmChatScreen> {
       ),
       body: Column(
         children: [
-          PinnedBanner(pinned: _pinned, onUnpin: _handleTogglePin),
+          PinnedBanner(pinned: _pinned, onUnpin: _handleTogglePin, onTapMessage: _scrollToMessage),
           Expanded(
             child: _isLoading
                 ? const LoadingView()
@@ -327,7 +347,13 @@ class _DmChatScreenState extends State<DmChatScreen> {
                               }
                               final msg = _messages[index];
                               final isSelf = msg.senderId == _myId;
-                              return MessageBubble(
+                              final bubbleKey = _bubbleKeys.putIfAbsent(msg.id, () => GlobalKey());
+                              final isHighlighted = _highlightedMessageId == msg.id;
+                              return AnimatedContainer(
+                                key: bubbleKey,
+                                duration: const Duration(milliseconds: 300),
+                                color: isHighlighted ? AppColors.warning.withValues(alpha: 0.15) : Colors.transparent,
+                                child: MessageBubble(
                                 message: msg,
                                 isSelf: isSelf,
                                 senderLabel: '',
@@ -335,6 +361,7 @@ class _DmChatScreenState extends State<DmChatScreen> {
                                 onEdit: () => _handleEdit(msg),
                                 onDelete: () => _handleDelete(msg),
                                 onTogglePin: () => _handleTogglePin(msg),
+                                ),
                               );
                             },
                           ),

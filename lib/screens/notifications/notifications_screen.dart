@@ -96,13 +96,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ? const LoadingView()
           : _error != null
               ? ErrorView(message: _error!, onRetry: _load)
-              : _notifications.isEmpty
-                  ? const EmptyView(message: 'No notifications yet.', icon: Icons.notifications_none)
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      color: AppColors.primary,
-                      child: ListView.separated(
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: AppColors.primary,
+                  child: _notifications.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 120),
+                            EmptyView(message: 'No notifications yet.', icon: Icons.notifications_none),
+                          ],
+                        )
+                      : ListView.separated(
                         padding: const EdgeInsets.all(16),
+                        physics: const AlwaysScrollableScrollPhysics(),
                         itemCount: _notifications.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {

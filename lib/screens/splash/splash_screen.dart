@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo mark — replace with Image.asset once brand assets are added.
+              // Logo mark — place your logo file at assets/images/logo.png
               Container(
                 width: 96,
                 height: 96,
@@ -73,7 +73,11 @@ class _SplashScreenState extends State<SplashScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.forum_rounded, color: Colors.white, size: 48),
+                padding: const EdgeInsets.all(20),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 24),
               RichText(

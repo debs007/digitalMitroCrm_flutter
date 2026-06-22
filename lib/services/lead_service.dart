@@ -28,6 +28,26 @@ class LeadService {
     );
   }
 
+  /// Admin/SuperAdmin — every employee's leads combined, exactly like the
+  /// web app's main Callbacks/Sales/Transfers list pages.
+  Future<({List<LeadModel> items, int totalPages, int total})> getAll(
+    LeadType type, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final res = await _api.get(
+      ApiConstants.leadAll(type.path),
+      queryParameters: {'page': page, 'limit': limit},
+    );
+    final list = res['data'];
+    final items = (list is List) ? list.map((e) => LeadModel.fromJson(Map<String, dynamic>.from(e))).toList() : <LeadModel>[];
+    return (
+      items: items,
+      totalPages: (res['totalPages'] is num) ? (res['totalPages'] as num).toInt() : 1,
+      total: (res[_totalKey(type)] is num) ? (res[_totalKey(type)] as num).toInt() : items.length,
+    );
+  }
+
   String _totalKey(LeadType type) {
     switch (type) {
       case LeadType.callback:

@@ -36,6 +36,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   String? _error;
   bool _sending = false;
   ChatMessage? _replyingTo;
+  final Map<String, GlobalKey> _bubbleKeys = {};
+  String? _highlightedMessageId;
 
   late String _myId;
   Map<String, String> _memberNames = {};
@@ -105,6 +107,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _onPinned = (data) {
       if (!mounted) return;
       _loadPinned();
+      if (data is Map) {
+        final id = data['messageId']?.toString();
+        final isPinned = data['isPinned'] == true;
+        setState(() {
+          final idx = _messages.indexWhere((m) => m.id == id);
+          if (idx != -1) _messages[idx] = _messages[idx].copyWith(isPinned: isPinned);
+        });
+      }
     };
     socket.on('channel-message-pinned', _onPinned!);
   }
@@ -162,6 +172,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     } catch (_) {}
   }
 
+  /// Scrolls to a pinned message, loading a few more older pages
+  /// (bounded) first if it isn't currently loaded.
+  Future<void> _scrollToMessage(ChatMessage target) async {
+    var attempts = 0;
+    while (!_messages.any((m) => m.id == target.id) && _hasMore && attempts < 5) {
+      await _loadMore();
+      attempts++;
+    }
+
+    final key = _bubbleKeys[target.id];
+    if (key?.currentContext != null) {
+      setState(() => _highlightedMessageId = target.id);
+      await Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 350),
+        alignment: 0.5,
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) setState(() => _highlightedMessageId = null);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't find that message — it may be further back in history.")),
+      );
+    }
+  }
+
   Future<void> _handleSend(String text, File? attachment) async {
     setState(() => _sending = true);
     try {
@@ -205,6 +241,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (newText == null || newText.isEmpty || newText == message.message) return;
     try {
       await ChannelService.instance.edit(messageId: message.id, newText: newText);
+      _patchMessage(message.id, (m) => m.copyWith(message: newText, editedAt: DateTime.now()));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -232,6 +269,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (confirmed != true) return;
     try {
       await ChannelService.instance.delete(message.id);
+      _patchMessage(message.id, (m) => m.copyWith(isDeleted: true, message: 'This message was deleted'));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -243,7 +281,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _handleTogglePin(ChatMessage message) async {
     try {
-      await ChannelService.instance.togglePin(message.id);
+      final isPinnedNow = await ChannelService.instance.togglePin(message.id);
+      _patchMessage(message.id, (m) => m.copyWith(isPinned: isPinnedNow));
       await _loadPinned();
     } catch (e) {
       if (mounted) {
@@ -252,6 +291,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         );
       }
     }
+  }
+
+  /// Replaces a message in [_messages] by id with the result of [update] —
+  /// the shared helper behind every optimistic local edit/delete/pin above.
+  void _patchMessage(String id, ChatMessage Function(ChatMessage) update) {
+    if (!mounted) return;
+    setState(() {
+      final idx = _messages.indexWhere((m) => m.id == id);
+      if (idx != -1) _messages[idx] = update(_messages[idx]);
+    });
   }
 
   @override
@@ -296,7 +345,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
       body: Column(
         children: [
-          PinnedBanner(pinned: _pinned, onUnpin: _handleTogglePin),
+          PinnedBanner(pinned: _pinned, onUnpin: _handleTogglePin, onTapMessage: _scrollToMessage),
           Expanded(
             child: _isLoading
                 ? const LoadingView()
@@ -318,7 +367,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               }
                               final msg = _messages[index];
                               final isSelf = msg.senderId == _myId;
-                              return MessageBubble(
+                              final bubbleKey = _bubbleKeys.putIfAbsent(msg.id, () => GlobalKey());
+                              final isHighlighted = _highlightedMessageId == msg.id;
+                              return AnimatedContainer(
+                                key: bubbleKey,
+                                duration: const Duration(milliseconds: 300),
+                                color: isHighlighted ? AppColors.warning.withValues(alpha: 0.15) : Colors.transparent,
+                                child: MessageBubble(
                                 message: msg,
                                 isSelf: isSelf,
                                 senderLabel: isSelf ? '' : (_memberNames[msg.senderId] ?? 'Unknown'),
@@ -326,6 +381,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 onEdit: () => _handleEdit(msg),
                                 onDelete: () => _handleDelete(msg),
                                 onTogglePin: () => _handleTogglePin(msg),
+                                ),
                               );
                             },
                           ),

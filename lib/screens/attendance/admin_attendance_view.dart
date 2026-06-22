@@ -92,9 +92,15 @@ class _AdminAttendanceViewState extends State<AdminAttendanceView> {
   Widget build(BuildContext context) {
     final summary = _summary;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         // Date selector
         InkWell(
           onTap: _pickDate,
@@ -166,7 +172,9 @@ class _AdminAttendanceViewState extends State<AdminAttendanceView> {
           else
             ..._filtered.map(_buildRow),
         ],
-      ],
+        ],
+        ),
+      ),
     );
   }
 

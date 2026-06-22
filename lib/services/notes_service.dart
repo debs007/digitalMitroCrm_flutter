@@ -23,6 +23,22 @@ class NotesService {
     }
   }
 
+  /// Admin/SuperAdmin viewing one employee's notes — read-only, matches
+  /// the web app's AdminNotes.jsx (no endpoint exists to edit someone
+  /// else's notes, only your own).
+  Future<List<String>> getNotesForEmployee(String employeeId) async {
+    try {
+      final res = await _api.get(ApiConstants.notesForEmployee(employeeId));
+      final data = res['data'];
+      final list = data is Map ? data['notes'] : null;
+      if (list is List) return List<String>.from(list);
+      return [];
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return [];
+      rethrow;
+    }
+  }
+
   /// Replaces the entire notes list — mirrors the backend's upsert behaviour.
   Future<void> saveNotes(List<String> notes) async {
     await _api.post(ApiConstants.notes, data: {'notes': notes});

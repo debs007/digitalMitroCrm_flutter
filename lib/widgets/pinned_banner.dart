@@ -5,8 +5,9 @@ import '../models/message_model.dart';
 class PinnedBanner extends StatefulWidget {
   final List<ChatMessage> pinned;
   final void Function(ChatMessage) onUnpin;
+  final void Function(ChatMessage)? onTapMessage;
 
-  const PinnedBanner({super.key, required this.pinned, required this.onUnpin});
+  const PinnedBanner({super.key, required this.pinned, required this.onUnpin, this.onTapMessage});
 
   @override
   State<PinnedBanner> createState() => _PinnedBannerState();
@@ -54,29 +55,33 @@ class _PinnedBannerState extends State<PinnedBanner> {
                 itemCount: widget.pinned.length,
                 itemBuilder: (context, index) {
                   final msg = widget.pinned[index];
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            msg.message.isNotEmpty ? msg.message : '[attachment]',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12),
+                  return InkWell(
+                    onTap: widget.onTapMessage != null ? () => widget.onTapMessage!(msg) : null,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              msg.message.isNotEmpty ? msg.message : '[attachment]',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          onPressed: () => widget.onUnpin(msg),
-                        ),
-                      ],
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            onPressed: () => widget.onUnpin(msg),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },

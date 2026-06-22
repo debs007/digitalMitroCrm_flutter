@@ -29,4 +29,15 @@ class ChatListService {
     }
     return [];
   }
+
+  /// Combined unread count across every channel + DM — used for the
+  /// bottom-nav Chat tab's badge.
+  Future<int> getTotalUnreadCount() async {
+    final results = await Future.wait([getChannels(), getConversations()]);
+    final channels = results[0] as List<ChannelModel>;
+    final conversations = results[1] as List<DmConversation>;
+    final channelTotal = channels.fold<int>(0, (sum, c) => sum + c.unreadCount);
+    final dmTotal = conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+    return channelTotal + dmTotal;
+  }
 }

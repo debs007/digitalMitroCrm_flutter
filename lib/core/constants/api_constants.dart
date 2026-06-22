@@ -63,11 +63,14 @@ class ApiConstants {
   static const String clearNotifications = '/notification/clear-notifications';
 
   // ── Notes ──────────────────────────────────────────────────────────────────
-  static const String notes = '/notes';
+  // Real mount point is /notepad (not /notes — this was a bug).
+  static const String notes = '/notepad';
+  static String notesForEmployee(String employeeId) => '/notepad/$employeeId';
 
   // ── Leads: Callback / Sale / Transfer (identical shape, different mount) ──
   static String leadCreate(String typePath) => '/$typePath';
   static String leadMine(String typePath) => '/$typePath/user';
+  static String leadAll(String typePath) => '/$typePath/all';
   static String leadForEmployee(String typePath, String employeeId) => '/$typePath/user/$employeeId';
   static String leadDelete(String typePath, String id) => '/$typePath/$id';
   static String leadUpdate(String typePath, String id) => '/$typePath/$id';
@@ -95,6 +98,8 @@ class ApiConstants {
   static String employeePayslips(String employeeId) => '/payslips/employee/$employeeId';
   static String payslipDelete(String id) => '/payslips/$id';
   static const String salarySheet = '/salary-sheet';
+  static const String salarySheetUpload = '/salary-sheet/upload';
+  static String salarySheetDelete(String id) => '/salary-sheet/$id';
 
   // ── Employee directory (Admin "Activity") ─────────────────────────────────
   static const String allEmployees = '/auth/';

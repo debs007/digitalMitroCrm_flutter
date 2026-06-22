@@ -13,6 +13,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/employees/employees_screen.dart';
 import '../screens/admins/manage_admins_screen.dart';
 import '../providers/nav_provider.dart';
+import '../screens/auth/login_screen.dart';
 import 'app_avatar.dart';
 
 class _DrawerItem {
@@ -64,7 +65,14 @@ class AppDrawer extends StatelessWidget {
     if (confirmed == true && context.mounted) {
       await context.read<AuthProvider>().logout();
       if (context.mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        // pushAndRemoveUntil(... (route) => false) clears the ENTIRE stack
+        // including AppShell, and mounts a brand new LoginScreen instance —
+        // popUntil(isFirst) only returned to AppShell since Splash used
+        // pushReplacement and isn't in the stack to pop back to.
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
       }
     }
   }

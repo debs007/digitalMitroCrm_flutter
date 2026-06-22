@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -23,12 +25,18 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
   List<PayslipModel> _payslips = [];
   List<SalarySheetModel> _sheets = [];
   String? _downloadingId;
+  String? _deletingId;
   bool _isAdmin = false;
+  bool _canUpload = false;
+  bool _canRevoke = false;
 
   @override
   void initState() {
     super.initState();
-    _isAdmin = context.read<AuthProvider>().user?.isAdmin ?? false;
+    final user = context.read<AuthProvider>().user;
+    _isAdmin = user?.isAdmin ?? false;
+    _canUpload = user?.isSuperAdmin == true || user?.can('salarySheet', 'upload') == true;
+    _canRevoke = user?.isSuperAdmin == true || user?.can('salarySheet', 'revoke') == true;
     _tabController = TabController(length: _isAdmin ? 1 : 2, vsync: this);
     _load();
   }
@@ -79,9 +87,57 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
     }
   }
 
+  Future<void> _deleteSheet(SalarySheetModel sheet) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this salary sheet?'),
+        content: Text(sheet.monthLabel),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.danger))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deletingId = sheet.id);
+    try {
+      await PayslipSalaryService.instance.deleteSalarySheet(sheet.id);
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : 'Could not delete sheet.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingId = null);
+    }
+  }
+
+  Future<void> _openUploadSheet() async {
+    final uploaded = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: const _UploadSalarySheet(),
+      ),
+    );
+    if (uploaded == true) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: _canUpload
+          ? FloatingActionButton(
+              onPressed: _openUploadSheet,
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.upload_file, color: Colors.white),
+            )
+          : null,
       appBar: AppBar(
         title: const Text('Salary'),
         bottom: TabBar(
@@ -132,8 +188,26 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(sheet.title.isNotEmpty ? sheet.title : sheet.monthLabel, style: AppText.bodyLarge),
-                Text(sheet.monthLabel, style: AppText.caption),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(sheet.title.isNotEmpty ? sheet.title : sheet.monthLabel, style: AppText.bodyLarge),
+                          Text(sheet.monthLabel, style: AppText.caption),
+                        ],
+                      ),
+                    ),
+                    if (_canRevoke)
+                      _deletingId == sheet.id
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.danger),
+                              onPressed: () => _deleteSheet(sheet),
+                            ),
+                  ],
+                ),
                 const Divider(height: 16),
                 ...sheet.rows.map((row) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -212,6 +286,165 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _UploadSalarySheet extends StatefulWidget {
+  const _UploadSalarySheet();
+
+  @override
+  State<_UploadSalarySheet> createState() => _UploadSalarySheetState();
+}
+
+class _UploadSalarySheetState extends State<_UploadSalarySheet> {
+  File? _csvFile;
+  int _month = DateTime.now().month;
+  int _year = DateTime.now().year;
+  final _titleController = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickCsv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() => _csvFile = File(result.files.single.path!));
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_csvFile == null) {
+      setState(() => _error = 'Please select a CSV file.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await PayslipSalaryService.instance.uploadSalarySheetCsv(
+        csvFile: _csvFile!,
+        month: _month,
+        year: _year,
+        title: _titleController.text.trim(),
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      setState(() {
+        _error = e is ApiException ? e.message : 'Upload failed. Check the CSV headers match the template.';
+        _submitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final years = List.generate(6, (i) => DateTime.now().year - 3 + i);
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Upload Salary Sheet', style: AppText.h3),
+          const SizedBox(height: 4),
+          const Text(
+            'CSV columns: EmpId, Email, Name, Position, Gross Salary, Attendance, Total Absent, In Hand Salary, Ptax, Remarks',
+            style: AppText.caption,
+          ),
+          const SizedBox(height: 16),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            ),
+
+          const Text('Month', style: AppText.label),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: List.generate(12, (i) {
+              final m = i + 1;
+              final selected = _month == m;
+              return ChoiceChip(
+                label: Text(_monthNames[i].substring(0, 3)),
+                selected: selected,
+                onSelected: (_) => setState(() => _month = m),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+
+          const Text('Year', style: AppText.label),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            children: years.map((y) => ChoiceChip(
+              label: Text(y.toString()),
+              selected: _year == y,
+              onSelected: (_) => setState(() => _year = y),
+            )).toList(),
+          ),
+          const SizedBox(height: 16),
+
+          const Text('Title (optional)', style: AppText.label),
+          const SizedBox(height: 8),
+          TextField(controller: _titleController, decoration: const InputDecoration(hintText: 'e.g. June 2026 Payroll')),
+          const SizedBox(height: 16),
+
+          const Text('CSV file', style: AppText.label),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _pickCsv,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(12)),
+              child: Row(
+                children: [
+                  const Icon(Icons.attach_file, size: 18, color: AppColors.textSecondary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _csvFile?.path.split('/').last ?? 'Select a .csv file',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.body,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : const Text('Upload'),
+            ),
+          ),
+        ],
       ),
     );
   }

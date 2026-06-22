@@ -90,10 +90,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
           title: const Text('Attendance'),
         ),
-        body: const SingleChildScrollView(
-          padding: EdgeInsets.all(16),
-          child: AdminAttendanceView(),
-        ),
+        body: const AdminAttendanceView(),
       );
     }
 

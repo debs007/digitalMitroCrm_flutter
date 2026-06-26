@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
 import '../../models/task_model.dart';
 import '../../models/channel_model.dart';
-import '../../providers/nav_provider.dart';
 import '../../services/chat_list_service.dart';
 import '../../services/task_service.dart';
 import 'create_task_screen.dart';
 import '../../widgets/app_avatar.dart';
+import '../../widgets/channel_logo.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/status_chip.dart';
 
@@ -131,7 +130,12 @@ class _TasksScreenState extends State<TasksScreen> {
     return AppColors.textSecondary;
   }
 
+  bool _creatingTaskFlow = false;
+
   Future<void> _startCreateTask() async {
+    if (_creatingTaskFlow) return; // Guards against double/triple-tap while the fetch is in flight.
+    setState(() => _creatingTaskFlow = true);
+
     List<ChannelModel> channels;
     try {
       channels = await ChatListService.instance.getChannels();
@@ -141,6 +145,7 @@ class _TasksScreenState extends State<TasksScreen> {
           const SnackBar(content: Text('Could not load channels.')),
         );
       }
+      if (mounted) setState(() => _creatingTaskFlow = false);
       return;
     }
     if (!mounted) return;
@@ -148,6 +153,7 @@ class _TasksScreenState extends State<TasksScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("You're not in any channels yet.")),
       );
+      setState(() => _creatingTaskFlow = false);
       return;
     }
 
@@ -162,15 +168,30 @@ class _TasksScreenState extends State<TasksScreen> {
               padding: EdgeInsets.all(16),
               child: Text('Create task in which channel?', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
-            ...channels.map((c) => ListTile(
-                  leading: const Icon(Icons.tag, color: AppColors.primary),
-                  title: Text(c.name),
-                  onTap: () => Navigator.pop(ctx, c),
-                )),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.55),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: channels.length,
+                  itemBuilder: (context, index) {
+                    final c = channels[index];
+                    return ListTile(
+                      leading: ChannelLogo(imageUrl: c.image, size: 40),
+                      title: Text(c.name),
+                      onTap: () => Navigator.pop(ctx, c),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
+
+    if (mounted) setState(() => _creatingTaskFlow = false);
     if (selected == null || !mounted) return;
 
     final created = await Navigator.of(context).push<bool>(
@@ -185,15 +206,13 @@ class _TasksScreenState extends State<TasksScreen> {
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        onPressed: _startCreateTask,
+        onPressed: _creatingTaskFlow ? null : _startCreateTask,
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: _creatingTaskFlow
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.add, color: Colors.white),
       ),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => context.read<NavProvider>().openDrawer(),
-        ),
         title: const Text('Tasks'),
       ),
       body: Column(
@@ -237,7 +256,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         ? const EmptyView(message: 'No tasks here.', icon: Icons.task_alt)
                         : RefreshIndicator(
                             onRefresh: _load,
-                            color: AppColors.primary,
+                            color: AppColors.loader,
                             child: ListView.separated(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               itemCount: tasks.length,
@@ -292,7 +311,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   child: SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader),
                   ),
                 )
               : Checkbox(

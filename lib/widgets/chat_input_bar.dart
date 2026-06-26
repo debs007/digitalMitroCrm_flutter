@@ -51,17 +51,17 @@ class _ChatInputBarState extends State<ChatInputBar> {
               child: Align(alignment: Alignment.centerLeft, child: Text('Share', style: TextStyle(fontWeight: FontWeight.w700))),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_camera_outlined, color: AppColors.primary),
+              leading: Icon(Icons.photo_camera_outlined, color: AppColors.primary),
               title: const Text('Camera'),
               onTap: () => Navigator.pop(ctx, 'camera'),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+              leading: Icon(Icons.photo_library_outlined, color: AppColors.primary),
               title: const Text('Photo or video from gallery'),
               onTap: () => Navigator.pop(ctx, 'gallery'),
             ),
             ListTile(
-              leading: const Icon(Icons.insert_drive_file_outlined, color: AppColors.primary),
+              leading: Icon(Icons.insert_drive_file_outlined, color: AppColors.primary),
               title: const Text('Document or other file'),
               onTap: () => Navigator.pop(ctx, 'file'),
             ),
@@ -117,7 +117,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     return SafeArea(
       top: false,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.divider)),
         ),
@@ -131,7 +131,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: AppColors.textSecondary),
+                    icon: Icon(Icons.add_circle_outline, color: AppColors.textSecondary),
                     onPressed: widget.sending ? null : _showAttachMenu,
                   ),
                   Expanded(
@@ -156,10 +156,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   widget.sending
                       ? const Padding(
                           padding: EdgeInsets.all(10),
-                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader)),
                         )
                       : IconButton(
-                          icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                          icon: Icon(Icons.send_rounded, color: AppColors.primary),
                           onPressed: _handleSend,
                         ),
                 ],
@@ -183,7 +183,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Replying',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
                 ),
@@ -191,7 +191,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   widget.replyingTo?.message ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),

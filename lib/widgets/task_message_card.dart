@@ -56,14 +56,14 @@ class TaskMessageCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.task_alt, size: 14, color: AppColors.primary),
+                  Icon(Icons.task_alt, size: 14, color: AppColors.primary),
                   const SizedBox(width: 6),
                   Text(
                     task.taskNumber,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
                   ),
                   const Spacer(),
-                  Text(message.message, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                  Text(message.message, style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -92,11 +92,11 @@ class TaskMessageCard extends StatelessWidget {
                     if (task.deadline != null)
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textFaint),
+                          Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textFaint),
                           const SizedBox(width: 4),
                           Text(
                             DateFormat('d MMM, hh:mm a').format(task.deadline!),
-                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -104,9 +104,9 @@ class TaskMessageCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.person_outline, size: 12, color: AppColors.textFaint),
+                          Icon(Icons.person_outline, size: 12, color: AppColors.textFaint),
                           const SizedBox(width: 4),
-                          Text(task.assignedToName!, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          Text(task.assignedToName!, style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                         ],
                       ),
                     ],

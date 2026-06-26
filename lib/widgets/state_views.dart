@@ -8,7 +8,7 @@ class LoadingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2.5),
+      child: CircularProgressIndicator(color: AppColors.loader, strokeWidth: 2.5),
     );
   }
 }
@@ -51,7 +51,7 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.danger),
+            Icon(Icons.error_outline, size: 48, color: AppColors.danger),
             const SizedBox(height: 12),
             Text(message, style: AppText.bodyMuted, textAlign: TextAlign.center),
             if (onRetry != null) ...[

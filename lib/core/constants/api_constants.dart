@@ -11,6 +11,11 @@ class ApiConstants {
   static const String mobileDashboard = '/mobile/dashboard';
   static const String mobileChannels = '/mobile/channels';
   static const String mobileDms = '/mobile/dms';
+  // Lightweight {id, name, avatar} listing any authenticated user can call
+  // (unlike allEmployees below, which is admin-only) — used for the
+  // "start a new DM" picker.
+  static const String allUsersLight = '/auth/all';
+  static const String channelCreate = '/api/create';
   static const String mobileFcmToken = '/mobile/fcm-token';
   static const String mobileSocketInfo = '/mobile/socket-info';
 
@@ -35,6 +40,10 @@ class ApiConstants {
   // ── Channels & channel chat ──────────────────────────────────────────────
   static const String channelsAll = '/api/all';
   static String channelDetail(String channelId) => '/api/$channelId';
+  static String channelInvite(String channelId) => '/api/invite/$channelId';
+  static String channelRemoveMember(String channelId) => '/api/$channelId/remove-member';
+  static String channelUpdate(String channelId) => '/api/$channelId';
+  static String channelImageUpload(String channelId) => '/api/$channelId/image';
   static String channelMessages(String channelId) => '/channels/$channelId';
   static const String sendChannelMessage = '/channels/send';
   static String markChannelRead(String channelId) => '/channels/$channelId/read';

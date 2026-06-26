@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'package:digital_mitro/screens/channel/edit_channel_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/socket_service.dart';
@@ -9,10 +11,13 @@ import '../../providers/auth_provider.dart';
 import '../../services/channel_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/chat_input_bar.dart';
+import '../../widgets/channel_logo.dart';
 import '../../widgets/message_bubble.dart';
 import '../../widgets/pinned_banner.dart';
 import '../../widgets/state_views.dart';
 import '../channel/channel_members_screen.dart';
+import '../channel/channel_tasks_screen.dart';
+//import '../channel/edit_channel_screen.dart';
 import '../tasks/create_task_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
@@ -40,7 +45,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   String? _highlightedMessageId;
 
   late String _myId;
+  bool _isAdmin = false;
+  String? _displayName;
   Map<String, String> _memberNames = {};
+  Map<String, String> _memberAvatars = {};
+  String? _channelImage;
+  bool _sharing = false;
   void Function(dynamic)? _onNewMessage;
   void Function(dynamic)? _onMessageUpdated;
   void Function(dynamic)? _onPinned;
@@ -48,24 +58,30 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void initState() {
     super.initState();
-    _myId = context.read<AuthProvider>().user?.id ?? '';
+    final user = context.read<AuthProvider>().user;
+    _myId = user?.id ?? '';
+    _isAdmin = user?.isAdmin ?? false;
     _scrollController.addListener(_onScroll);
     SocketService.instance.joinChannel(widget.channelId);
     _registerSocketListeners();
     _load();
-    _loadMemberNames();
+    _loadChannelDetail();
     ChannelService.instance.markAsRead(widget.channelId);
   }
 
-  Future<void> _loadMemberNames() async {
+  Future<void> _loadChannelDetail() async {
     try {
       final detail = await ChannelService.instance.getDetail(widget.channelId);
       if (!mounted) return;
       setState(() {
         _memberNames = {for (final m in detail.members) m.id: m.name};
+        _memberAvatars = {for (final m in detail.members) m.id: m.avatar};
+        _channelImage = detail.image;
+        _displayName = detail.name;
       });
     } catch (_) {
-      // Non-fatal — sender labels just fall back to "Member" if this fails.
+      // Non-fatal — sender labels/avatars and the header logo just fall
+      // back to defaults if this fails.
     }
   }
 
@@ -261,7 +277,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+            child: Text('Delete', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -303,42 +319,83 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
   }
 
+  Future<void> _handleShare() async {
+    setState(() => _sharing = true);
+    try {
+      final link = await ChannelService.instance.getInviteLink(widget.channelId);
+      await Share.share(link, subject: 'Join #${widget.channelName} on Digital Mitro');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : 'Could not get invite link.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  Future<void> _handleEditChannel(String currentName) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditChannelScreen(
+          channelId: widget.channelId,
+          currentName: currentName,
+          currentImage: _channelImage,
+        ),
+      ),
+    );
+    if (saved == true) _loadChannelDetail();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final effectiveName = _displayName ?? widget.channelName;
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(10)),
-              alignment: Alignment.center,
-              child: const Text('#', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800)),
-            ),
+            ChannelLogo(imageUrl: _channelImage, size: 36),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(widget.channelName, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
+              child: Text(effectiveName, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
         actions: [
+          if (_sharing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'members') {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => ChannelMembersScreen(channelId: widget.channelId, channelName: widget.channelName),
+                  builder: (_) => ChannelMembersScreen(channelId: widget.channelId, channelName: effectiveName),
+                ));
+              } else if (value == 'tasks') {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ChannelTasksScreen(channelId: widget.channelId, channelName: effectiveName),
                 ));
               } else if (value == 'create_task') {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => CreateTaskScreen(channelId: widget.channelId, channelName: widget.channelName),
+                  builder: (_) => CreateTaskScreen(channelId: widget.channelId, channelName: effectiveName),
                 ));
+              } else if (value == 'share') {
+                _handleShare();
+              } else if (value == 'edit') {
+                _handleEditChannel(effectiveName);
               }
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'members', child: Text('View members')),
-              PopupMenuItem(value: 'create_task', child: Text('Create task')),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'members', child: Text('View members')),
+              const PopupMenuItem(value: 'tasks', child: Text('View tasks')),
+              const PopupMenuItem(value: 'create_task', child: Text('Create task')),
+              const PopupMenuItem(value: 'share', child: Text('Share')),
+              if (_isAdmin) const PopupMenuItem(value: 'edit', child: Text('Edit channel')),
             ],
           ),
         ],
@@ -377,6 +434,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 message: msg,
                                 isSelf: isSelf,
                                 senderLabel: isSelf ? '' : (_memberNames[msg.senderId] ?? 'Unknown'),
+                                senderAvatar: isSelf ? null : _memberAvatars[msg.senderId],
                                 onReply: () => setState(() => _replyingTo = msg),
                                 onEdit: () => _handleEdit(msg),
                                 onDelete: () => _handleDelete(msg),

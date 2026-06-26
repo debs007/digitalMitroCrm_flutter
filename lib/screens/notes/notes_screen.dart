@@ -138,7 +138,7 @@ class _OwnNotesViewState extends State<_OwnNotesView> {
               ? ErrorView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: AppColors.primary,
+                  color: AppColors.loader,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
@@ -242,7 +242,7 @@ class _EmployeePickerState extends State<_EmployeePicker> {
                     ? ErrorView(message: _error!, onRetry: _load)
                     : RefreshIndicator(
                         onRefresh: _load,
-                        color: AppColors.primary,
+                        color: AppColors.loader,
                         child: ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -254,7 +254,7 @@ class _EmployeePickerState extends State<_EmployeePicker> {
                               tileColor: AppColors.surface,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                side: const BorderSide(color: AppColors.divider),
+                                side: BorderSide(color: AppColors.divider),
                               ),
                               leading: AppAvatar(name: e.name, imageUrl: e.avatar, size: 40),
                               title: Text(e.name),
@@ -326,7 +326,7 @@ class _EmployeeNotesViewState extends State<_EmployeeNotesView> {
               ? ErrorView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: AppColors.primary,
+                  color: AppColors.loader,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),

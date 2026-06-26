@@ -13,7 +13,6 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/employees/employees_screen.dart';
 import '../screens/admins/manage_admins_screen.dart';
 import '../providers/nav_provider.dart';
-import '../screens/auth/login_screen.dart';
 import 'app_avatar.dart';
 
 class _DrawerItem {
@@ -46,40 +45,9 @@ class AppDrawer extends StatelessWidget {
     context.read<NavProvider>().setIndex(index);
   }
 
-  Future<void> _logout(BuildContext context) async {
-    Navigator.of(context).pop();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You will need to log in again to access your account.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Log out', style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && context.mounted) {
-      await context.read<AuthProvider>().logout();
-      if (context.mounted) {
-        // pushAndRemoveUntil(... (route) => false) clears the ENTIRE stack
-        // including AppShell, and mounts a brand new LoginScreen instance —
-        // popUntil(isFirst) only returned to AppShell since Splash used
-        // pushReplacement and isn't in the stack to pop back to.
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      }
-    }
-  }
-
   List<_DrawerItem> _buildItems(BuildContext context, AppUser? user) {
     final items = <_DrawerItem>[
-      _DrawerItem(label: 'Home', icon: Icons.home_outlined, onTap: () => Navigator.of(context).pop()),
+      _DrawerItem(label: 'Home', icon: Icons.home_rounded, onTap: () => _switchTab(context, 0)),
     ];
 
     if (user == null) return items;
@@ -87,52 +55,52 @@ class AppDrawer extends StatelessWidget {
     if (user.isClient) {
       // Clients see a minimal set.
       items.addAll([
-        _DrawerItem(label: 'Tasks', icon: Icons.task_outlined, onTap: () => _switchTab(context, 1)),
-        _DrawerItem(label: 'Settings', icon: Icons.settings_outlined, onTap: () => _push(context, const SettingsScreen())),
+        _DrawerItem(label: 'Tasks', icon: Icons.task_rounded, onTap: () => _switchTab(context, 1)),
+        _DrawerItem(label: 'Settings', icon: Icons.settings_rounded, onTap: () => _push(context, const SettingsScreen())),
       ]);
     } else if (user.isEmployee) {
       items.addAll([
-        _DrawerItem(label: 'Attendance', icon: Icons.calendar_today_outlined, onTap: () => _switchTab(context, 2)),
-        _DrawerItem(label: 'Notes', icon: Icons.notes_outlined, onTap: () => _push(context, const NotesScreen())),
-        _DrawerItem(label: 'Callbacks', icon: Icons.call_outlined, onTap: () => _push(context, const LeadsListScreen(type: LeadType.callback))),
-        _DrawerItem(label: 'Transfers', icon: Icons.swap_horiz_outlined, onTap: () => _push(context, const LeadsListScreen(type: LeadType.transfer))),
-        _DrawerItem(label: 'Sales', icon: Icons.show_chart_outlined, onTap: () => _push(context, const LeadsListScreen(type: LeadType.sale))),
-        _DrawerItem(label: 'Tasks', icon: Icons.task_outlined, onTap: () => _switchTab(context, 1)),
-        _DrawerItem(label: 'Concern', icon: Icons.report_gmailerrorred_outlined, onTap: () => _push(context, const ConcernScreen())),
-        _DrawerItem(label: 'Salary', icon: Icons.payments_outlined, onTap: () => _push(context, const SalaryScreen())),
-        _DrawerItem(label: 'Settings', icon: Icons.settings_outlined, onTap: () => _push(context, const SettingsScreen())),
+        _DrawerItem(label: 'Attendance', icon: Icons.event_available_rounded, onTap: () => _switchTab(context, 2)),
+        _DrawerItem(label: 'Notes', icon: Icons.sticky_note_2_rounded, onTap: () => _push(context, const NotesScreen())),
+        _DrawerItem(label: 'Callbacks', icon: Icons.call_rounded, onTap: () => _push(context, const LeadsListScreen(type: LeadType.callback))),
+        _DrawerItem(label: 'Transfers', icon: Icons.swap_horiz_rounded, onTap: () => _push(context, const LeadsListScreen(type: LeadType.transfer))),
+        _DrawerItem(label: 'Sales', icon: Icons.trending_up_rounded, onTap: () => _push(context, const LeadsListScreen(type: LeadType.sale))),
+        _DrawerItem(label: 'Tasks', icon: Icons.task_rounded, onTap: () => _switchTab(context, 1)),
+        _DrawerItem(label: 'Concern', icon: Icons.report_problem_rounded, onTap: () => _push(context, const ConcernScreen())),
+        _DrawerItem(label: 'Salary', icon: Icons.payments_rounded, onTap: () => _push(context, const SalaryScreen())),
+        _DrawerItem(label: 'Settings', icon: Icons.settings_rounded, onTap: () => _push(context, const SettingsScreen())),
       ]);
     } else {
       // Admin / SuperAdmin — gated by permission, same pattern as the web sidebar.
       if (user.isSuperAdmin || user.can('attendance', 'access')) {
-        items.add(_DrawerItem(label: 'Attendance', icon: Icons.calendar_today_outlined, onTap: () => _switchTab(context, 2)));
+        items.add(_DrawerItem(label: 'Attendance', icon: Icons.event_available_rounded, onTap: () => _switchTab(context, 2)));
       }
       if (user.isSuperAdmin || user.can('notes', 'access')) {
-        items.add(_DrawerItem(label: 'Notes', icon: Icons.notes_outlined, onTap: () => _push(context, const NotesScreen())));
+        items.add(_DrawerItem(label: 'Notes', icon: Icons.sticky_note_2_rounded, onTap: () => _push(context, const NotesScreen())));
       }
       if (user.isSuperAdmin || user.can('callbacks', 'access')) {
-        items.add(_DrawerItem(label: 'Callbacks', icon: Icons.call_outlined, onTap: () => _push(context, const LeadsListScreen(type: LeadType.callback))));
+        items.add(_DrawerItem(label: 'Callbacks', icon: Icons.call_rounded, onTap: () => _push(context, const LeadsListScreen(type: LeadType.callback))));
       }
       if (user.isSuperAdmin || user.can('transfer', 'access')) {
-        items.add(_DrawerItem(label: 'Transfers', icon: Icons.swap_horiz_outlined, onTap: () => _push(context, const LeadsListScreen(type: LeadType.transfer))));
+        items.add(_DrawerItem(label: 'Transfers', icon: Icons.swap_horiz_rounded, onTap: () => _push(context, const LeadsListScreen(type: LeadType.transfer))));
       }
       if (user.isSuperAdmin || user.can('sales', 'access')) {
-        items.add(_DrawerItem(label: 'Sales', icon: Icons.show_chart_outlined, onTap: () => _push(context, const LeadsListScreen(type: LeadType.sale))));
+        items.add(_DrawerItem(label: 'Sales', icon: Icons.trending_up_rounded, onTap: () => _push(context, const LeadsListScreen(type: LeadType.sale))));
       }
       if (user.isSuperAdmin || user.can('activity', 'access')) {
-        items.add(_DrawerItem(label: 'Activity', icon: Icons.bar_chart_outlined, onTap: () => _push(context, const EmployeesScreen())));
+        items.add(_DrawerItem(label: 'Activity', icon: Icons.insights_rounded, onTap: () => _push(context, const EmployeesScreen())));
       }
       if (user.isSuperAdmin || user.can('concern', 'access')) {
-        items.add(_DrawerItem(label: 'Concern', icon: Icons.report_gmailerrorred_outlined, onTap: () => _push(context, const ConcernScreen())));
+        items.add(_DrawerItem(label: 'Concern', icon: Icons.report_problem_rounded, onTap: () => _push(context, const ConcernScreen())));
       }
-      items.add(_DrawerItem(label: 'Tasks', icon: Icons.task_outlined, onTap: () => _switchTab(context, 1)));
+      items.add(_DrawerItem(label: 'Tasks', icon: Icons.task_rounded, onTap: () => _switchTab(context, 1)));
       if (user.isSuperAdmin || user.can('salary', 'access')) {
-        items.add(_DrawerItem(label: 'Salary', icon: Icons.payments_outlined, onTap: () => _push(context, const SalaryScreen())));
+        items.add(_DrawerItem(label: 'Salary', icon: Icons.payments_rounded, onTap: () => _push(context, const SalaryScreen())));
       }
       if (user.isSuperAdmin) {
-        items.add(_DrawerItem(label: 'Manage Admins', icon: Icons.admin_panel_settings_outlined, onTap: () => _push(context, const ManageAdminsScreen())));
+        items.add(_DrawerItem(label: 'Manage Admins', icon: Icons.admin_panel_settings_rounded, onTap: () => _push(context, const ManageAdminsScreen())));
       }
-      items.add(_DrawerItem(label: 'Settings', icon: Icons.settings_outlined, onTap: () => _push(context, const SettingsScreen())));
+      items.add(_DrawerItem(label: 'Settings', icon: Icons.settings_rounded, onTap: () => _push(context, const SettingsScreen())));
     }
 
     return items;
@@ -179,7 +147,7 @@ class AppDrawer extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: AppColors.textFaint),
+                  Icon(Icons.chevron_right, color: AppColors.textFaint),
                 ],
               ),
             ),
@@ -204,15 +172,6 @@ class AppDrawer extends StatelessWidget {
                   );
                 },
               ),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.danger),
-              title: const Text(
-                'Logout',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.danger),
-              ),
-              onTap: () => _logout(context),
             ),
             const SizedBox(height: 8),
           ],

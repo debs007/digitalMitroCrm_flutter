@@ -6,7 +6,6 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
 import '../../models/attendance_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/nav_provider.dart';
 import '../../services/attendance_service.dart';
 import '../../widgets/state_views.dart';
 import 'admin_attendance_view.dart';
@@ -84,10 +83,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (isAdmin) {
       return Scaffold(
         appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => context.read<NavProvider>().openDrawer(),
-          ),
           title: const Text('Attendance'),
         ),
         body: const AdminAttendanceView(),
@@ -96,10 +91,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => context.read<NavProvider>().openDrawer(),
-        ),
         title: const Text('Attendance'),
       ),
       body: _isLoading
@@ -108,7 +99,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ? ErrorView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: AppColors.primary,
+                  color: AppColors.loader,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -122,7 +113,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      const Text('Attendance History', style: AppText.h3),
+                      Text('Attendance History', style: AppText.h3),
                       const SizedBox(height: 12),
                       if (_history.isEmpty)
                         const EmptyView(message: 'No attendance history yet.', icon: Icons.event_busy)
@@ -173,7 +164,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary),
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.loader),
                     )
                   : Text(isPunchedIn ? 'Clock Out' : 'Clock In'),
             ),

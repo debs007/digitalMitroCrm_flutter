@@ -45,6 +45,12 @@ class SecureStorage {
     return raw == 'true';
   }
 
+  /// 'light', 'dark', or 'system' — read once at app startup by ThemeProvider.
+  Future<void> setThemeMode(String mode) =>
+      _storage.write(key: AppConstants.storageThemeModeKey, value: mode);
+
+  Future<String?> getThemeMode() => _storage.read(key: AppConstants.storageThemeModeKey);
+
   Future<void> clearSession() async {
     await _storage.delete(key: AppConstants.storageTokenKey);
     await _storage.delete(key: AppConstants.storageUserTypeKey);

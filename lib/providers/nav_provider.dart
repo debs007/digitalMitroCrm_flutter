@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// Index of the Chat tab in AppShell's bottom nav — used to know when to
-/// auto-clear the unread badge.
-const int kChatTabIndex = 4;
+/// auto-clear the unread badge. (Home=0, Tasks=1, Attendance=2, Chat=3 —
+/// Notifications was removed from the bottom nav.)
+const int kChatTabIndex = 3;
 
 /// Tracks which bottom-nav tab is active inside [AppShell], and gives
 /// every tab a way to open the shared drawer even though each tab has

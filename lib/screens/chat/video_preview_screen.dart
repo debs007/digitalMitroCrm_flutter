@@ -80,7 +80,7 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
               child: VideoProgressIndicator(
                 _controller,
                 allowScrubbing: true,
-                colors: const VideoProgressColors(playedColor: AppColors.primary, bufferedColor: Colors.white24),
+                colors: VideoProgressColors(playedColor: AppColors.primary, bufferedColor: Colors.white24),
               ),
             )
           : null,

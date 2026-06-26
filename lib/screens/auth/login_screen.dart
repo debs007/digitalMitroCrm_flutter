@@ -69,15 +69,15 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
-                const Text('Welcome Back! 👋', style: AppText.h1),
+                Text('Welcome Back! 👋', style: AppText.h1),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Login to continue to your account',
                   style: AppText.bodyMuted,
                 ),
                 const SizedBox(height: 28),
 
-                const Text('Login As', style: AppText.label),
+                Text('Login As', style: AppText.label),
                 const SizedBox(height: 10),
                 _RoleSelector(
                   selected: _selectedRole,
@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                const Text('Email Address', style: AppText.label),
+                Text('Email Address', style: AppText.label),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                const Text('Password', style: AppText.label),
+                Text('Password', style: AppText.label),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
@@ -145,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text('Remember me', style: AppText.bodyMuted),
+                          Text('Remember me', style: AppText.bodyMuted),
                         ],
                       ),
                     ),

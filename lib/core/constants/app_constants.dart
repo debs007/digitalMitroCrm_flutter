@@ -10,6 +10,7 @@ class AppConstants {
   static const String storageUserTypeKey = 'dm_user_type';
   static const String storageUserJsonKey = 'dm_user_json';
   static const String storageRememberMeKey = 'dm_remember_me';
+  static const String storageThemeModeKey = 'dm_theme_mode';
 
   // User types — mirrors backend `userType` values from /mobile/login
   static const String roleEmployee = 'employee';

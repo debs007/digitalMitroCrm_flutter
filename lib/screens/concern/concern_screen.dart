@@ -7,6 +7,7 @@ import '../../core/network/api_exception.dart';
 import '../../models/concern_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/concern_service.dart';
+import '../../widgets/app_avatar.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/status_chip.dart';
 
@@ -23,6 +24,7 @@ class _ConcernScreenState extends State<ConcernScreen> {
   List<ConcernModel> _concerns = [];
   bool _isAdmin = false;
   String? _busyId;
+  String? _expandedId;
 
   @override
   void initState() {
@@ -100,6 +102,19 @@ class _ConcernScreenState extends State<ConcernScreen> {
     if (submitted == true) _load();
   }
 
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 110, child: Text(label, style: AppText.caption)),
+          Expanded(child: Text(value, style: AppText.body)),
+        ],
+      ),
+    );
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'Approved':
@@ -130,7 +145,7 @@ class _ConcernScreenState extends State<ConcernScreen> {
                   ? const EmptyView(message: 'No concerns to show.', icon: Icons.report_gmailerrorred_outlined)
                   : RefreshIndicator(
                       onRefresh: _load,
-                      color: AppColors.primary,
+                      color: AppColors.loader,
                       child: ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: _concerns.length,
@@ -138,22 +153,40 @@ class _ConcernScreenState extends State<ConcernScreen> {
                         itemBuilder: (context, index) {
                           final c = _concerns[index];
                           final busy = _busyId == c.id;
-                          return Container(
+                          final isExpanded = _expandedId == c.id;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => setState(() => _expandedId = isExpanded ? null : c.id),
+                            child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppColors.divider),
+                              border: Border.all(color: isExpanded ? AppColors.primary : AppColors.divider),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
+                                    // Always show who this concern belongs to when we have
+                                    // a name (i.e. the admin/superadmin view) — this was
+                                    // previously buried inline with the concern type.
+                                    if (_isAdmin && c.userName.isNotEmpty) ...[
+                                      AppAvatar(name: c.userName, imageUrl: c.userAvatar, size: 34),
+                                      const SizedBox(width: 10),
+                                    ],
                                     Expanded(
-                                      child: Text(
-                                        _isAdmin && c.userName.isNotEmpty ? '${c.userName} · ${c.concernType}' : c.concernType,
-                                        style: AppText.bodyLarge,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (_isAdmin && c.userName.isNotEmpty)
+                                            Text(c.userName, style: AppText.bodyLarge),
+                                          Text(
+                                            c.concernType,
+                                            style: (_isAdmin && c.userName.isNotEmpty) ? AppText.caption : AppText.bodyLarge,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     StatusChip(
@@ -161,16 +194,27 @@ class _ConcernScreenState extends State<ConcernScreen> {
                                       color: _statusColor(c.status),
                                       background: _statusColor(c.status).withValues(alpha: 0.12),
                                     ),
+                                    Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.textFaint),
                                   ],
                                 ),
-                                const SizedBox(height: 6),
-                                Text(c.message, style: AppText.body),
-                                if (c.concernDate != null) ...[
-                                  const SizedBox(height: 6),
-                                  Text('For date: ${c.concernDate}', style: AppText.caption),
-                                ],
-                                const SizedBox(height: 4),
-                                Text(DateFormat('d MMM yyyy, hh:mm a').format(c.createdAt), style: AppText.caption),
+                                const SizedBox(height: 8),
+                                Text(
+                                  c.message,
+                                  style: AppText.body,
+                                  maxLines: isExpanded ? null : 2,
+                                  overflow: isExpanded ? null : TextOverflow.ellipsis,
+                                ),
+                                if (isExpanded) ...[
+                                  const Divider(height: 18),
+                                  if (c.concernDate != null) _detailRow('For date', c.concernDate!),
+                                  if (c.actualPunchIn != null) _detailRow('Actual punch in', c.actualPunchIn!),
+                                  if (c.actualPunchOut != null) _detailRow('Actual punch out', c.actualPunchOut!),
+                                  _detailRow('Submitted', DateFormat('d MMM yyyy, hh:mm a').format(c.createdAt)),
+                                ] else
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(DateFormat('d MMM yyyy, hh:mm a').format(c.createdAt), style: AppText.caption),
+                                  ),
                                 if (_isAdmin && c.status == 'Pending') ...[
                                   const SizedBox(height: 10),
                                   Row(
@@ -196,6 +240,7 @@ class _ConcernScreenState extends State<ConcernScreen> {
                                   ),
                                 ],
                               ],
+                            ),
                             ),
                           );
                         },
@@ -269,14 +314,14 @@ class _SubmitConcernSheetState extends State<_SubmitConcernSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Raise a Concern', style: AppText.h3),
+          Text('Raise a Concern', style: AppText.h3),
           const SizedBox(height: 16),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+              child: Text(_error!, style: TextStyle(color: AppColors.danger)),
             ),
-          const Text('Type', style: AppText.label),
+          Text('Type', style: AppText.label),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -287,7 +332,7 @@ class _SubmitConcernSheetState extends State<_SubmitConcernSheet> {
             )).toList(),
           ),
           const SizedBox(height: 16),
-          const Text('For date (optional)', style: AppText.label),
+          Text('For date (optional)', style: AppText.label),
           const SizedBox(height: 8),
           InkWell(
             onTap: _pickDate,
@@ -300,7 +345,7 @@ class _SubmitConcernSheetState extends State<_SubmitConcernSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Message', style: AppText.label),
+          Text('Message', style: AppText.label),
           const SizedBox(height: 8),
           TextField(controller: _message, maxLines: 4, decoration: const InputDecoration(hintText: 'Describe your concern...')),
           const SizedBox(height: 20),

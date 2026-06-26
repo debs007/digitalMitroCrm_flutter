@@ -134,7 +134,7 @@ class _OverviewTabState extends State<_OverviewTab> {
     final e = widget.employee;
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -167,7 +167,7 @@ class _OverviewTabState extends State<_OverviewTab> {
               _statTile('Attendance', _summary['attendance'] ?? 0, Icons.calendar_today_outlined, AppColors.info, AppColors.infoBg),
               _statTile('Callbacks', _summary['callback'] ?? 0, Icons.call_outlined, AppColors.warning, AppColors.warningBg),
               _statTile('Sales', _summary['sale'] ?? 0, Icons.show_chart_outlined, AppColors.success, AppColors.successBg),
-              _statTile('Transfers', _summary['transfer'] ?? 0, Icons.swap_horiz_outlined, AppColors.primary, AppColors.primaryTint),
+              _statTile('Transfers', _summary['transfer'] ?? 0, Icons.swap_horiz_outlined, AppColors.loader, AppColors.primaryTint),
             ],
           ),
         ],
@@ -370,7 +370,7 @@ class _LeadsTabState extends State<_LeadsTab> {
     }
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _items.length,
@@ -391,7 +391,7 @@ class _LeadsTabState extends State<_LeadsTab> {
                   children: [
                     Expanded(child: Text(lead.name.isNotEmpty ? lead.name : 'No name', style: AppText.bodyLarge)),
                     if (lead.budget.isNotEmpty)
-                      Text(lead.budget, style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w700)),
+                      Text(lead.budget, style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700)),
                   ],
                 ),
                 Text(lead.phone, style: AppText.bodyMuted),
@@ -512,7 +512,7 @@ class _PayslipsTabState extends State<_PayslipsTab> {
         content: Text(p.monthLabel),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -547,7 +547,7 @@ class _PayslipsTabState extends State<_PayslipsTab> {
                   ? const EmptyView(message: 'No payslips uploaded yet.', icon: Icons.description_outlined)
                   : RefreshIndicator(
                       onRefresh: _load,
-                      color: AppColors.primary,
+                      color: AppColors.loader,
                       child: ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: _payslips.length,
@@ -568,7 +568,7 @@ class _PayslipsTabState extends State<_PayslipsTab> {
                                   width: 40,
                                   height: 40,
                                   decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(10)),
-                                  child: const Icon(Icons.description_outlined, color: AppColors.primary),
+                                  child: const Icon(Icons.description_outlined, color: AppColors.loader),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(child: Text(p.monthLabel, style: AppText.bodyLarge)),
@@ -578,11 +578,11 @@ class _PayslipsTabState extends State<_PayslipsTab> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
-                                            icon: const Icon(Icons.open_in_new, size: 18, color: AppColors.primary),
+                                            icon: const Icon(Icons.open_in_new, size: 18, color: AppColors.loader),
                                             onPressed: () => _openPayslip(p),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
+                                            icon: Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
                                             onPressed: () => _deletePayslip(p),
                                           ),
                                         ],

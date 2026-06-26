@@ -5,7 +5,13 @@ import 'app_text_styles.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light {
+  /// Single theme that adapts to [AppColors.isDark] — every colour inside
+  /// already resolves dynamically via AppColors' getters, so there's no
+  /// need for a separate light/dark ThemeData tree. main.dart always
+  /// passes ThemeMode.light to MaterialApp so Flutter never tries to
+  /// auto-switch based on system brightness; this getter is the single
+  /// source of truth instead.
+  static ThemeData get current {
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: AppColors.background,
@@ -14,9 +20,9 @@ class AppTheme {
         seedColor: AppColors.primary,
         primary: AppColors.primary,
         surface: AppColors.surface,
-        brightness: Brightness.light,
+        brightness: AppColors.isDark ? Brightness.dark : Brightness.light,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -29,7 +35,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.divider, width: 1),
+          side: BorderSide(color: AppColors.divider, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -47,11 +53,11 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.danger, width: 1.2),
+          borderSide: BorderSide(color: AppColors.danger, width: 1.2),
         ),
         hintStyle: AppText.bodyMuted,
       ),
@@ -69,7 +75,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
           minimumSize: const Size.fromHeight(52),
-          side: const BorderSide(color: AppColors.divider),
+          side: BorderSide(color: AppColors.divider),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
@@ -82,9 +88,9 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) return AppColors.primary;
           return Colors.transparent;
         }),
-        side: const BorderSide(color: AppColors.divider, width: 1.5),
+        side: BorderSide(color: AppColors.divider, width: 1.5),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textFaint,
@@ -93,9 +99,12 @@ class AppTheme {
         selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
         unselectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
       ),
-      dividerTheme: const DividerThemeData(color: AppColors.divider, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: AppColors.divider, thickness: 1, space: 1),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.textPrimary,
+        // Fixed dark colour on purpose, not AppColors.textPrimary — that
+        // flips to near-white in dark mode, which would make the snackbar
+        // background near-white with white text and invisible.
+        backgroundColor: const Color(0xFF1F1F23),
         contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

@@ -26,6 +26,7 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
   List<LeadModel> _items = [];
   int _page = 1;
   int _totalPages = 1;
+  String? _expandedId;
 
   @override
   void initState() {
@@ -65,7 +66,7 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
         content: Text(lead.name.isNotEmpty ? lead.name : lead.phone),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -100,7 +101,7 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               (context.watch<AuthProvider>().user?.isAdmin ?? false) ? 'All employees' : 'Mine',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ),
         ),
@@ -118,7 +119,7 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
                   ? EmptyView(message: 'No ${widget.type.label.toLowerCase()}s yet.', icon: Icons.inbox_outlined)
                   : RefreshIndicator(
                       onRefresh: () => _load(page: _page),
-                      color: AppColors.primary,
+                      color: AppColors.loader,
                       child: ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: _items.length + (_totalPages > 1 ? 1 : 0),
@@ -128,6 +129,7 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
                             return _buildPager();
                           }
                           final lead = _items[index];
+                          final isExpanded = _expandedId == lead.id;
                           return Dismissible(
                             key: ValueKey(lead.id),
                             direction: DismissDirection.endToStart,
@@ -135,48 +137,94 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
                               decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(14)),
-                              child: const Icon(Icons.delete_outline, color: AppColors.danger),
+                              child: Icon(Icons.delete_outline, color: AppColors.danger),
                             ),
                             confirmDismiss: (_) async {
                               await _delete(lead);
                               return false; // we handle removal via reload
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.divider),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          lead.name.isNotEmpty ? lead.name : 'No name',
-                                          style: AppText.bodyLarge,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () => setState(() => _expandedId = isExpanded ? null : lead.id),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: isExpanded ? AppColors.primary : AppColors.divider),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            lead.name.isNotEmpty ? lead.name : 'No name',
+                                            style: AppText.bodyLarge,
+                                          ),
+                                        ),
+                                        if (lead.budget.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(right: 6),
+                                            child: Text(lead.budget, style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700)),
+                                          ),
+                                        Icon(
+                                          isExpanded ? Icons.expand_less : Icons.expand_more,
+                                          color: AppColors.textFaint,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(lead.phone, style: AppText.bodyMuted),
+                                    if (!isExpanded && lead.email.isNotEmpty) Text(lead.email, style: AppText.caption),
+                                    if (isExpanded) ...[
+                                      const Divider(height: 20),
+                                      _detailRow('Email', lead.email),
+                                      _detailRow('Domain', lead.domainName),
+                                      _detailRow('Address', lead.address),
+                                      _detailRow('Country', lead.country),
+                                      _detailRow('Call date', lead.callDate),
+                                      _detailRow('Budget', lead.budget),
+                                      const SizedBox(height: 4),
+                                      Text('Comments', style: AppText.label),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        lead.comments.isNotEmpty ? lead.comments : 'No comments.',
+                                        style: AppText.body,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton.icon(
+                                          onPressed: () => _delete(lead),
+                                          icon: Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
+                                          label: Text('Delete', style: TextStyle(color: AppColors.danger)),
                                         ),
                                       ),
-                                      if (lead.budget.isNotEmpty)
-                                        Text(lead.budget, style: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w700)),
                                     ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(lead.phone, style: AppText.bodyMuted),
-                                  if (lead.email.isNotEmpty) Text(lead.email, style: AppText.caption),
-                                  if (lead.comments.isNotEmpty) ...[
-                                    const SizedBox(height: 6),
-                                    Text(lead.comments, style: AppText.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
                                   ],
-                                ],
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
                     ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    if (value.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 80, child: Text(label, style: AppText.caption)),
+          Expanded(child: Text(value, style: AppText.body)),
+        ],
+      ),
     );
   }
 
@@ -289,7 +337,7 @@ class _LeadFormScreenState extends State<_LeadFormScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger)),
               ),
             _field('Name', _name),
             _field('Phone *', _phone, keyboardType: TextInputType.phone),

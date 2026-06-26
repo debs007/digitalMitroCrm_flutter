@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/profile_service.dart';
 import '../../widgets/app_avatar.dart';
 import '../auth/login_screen.dart';
@@ -100,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Log out?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Log out', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Log out', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -139,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Container(
                         width: 32,
                         height: 32,
-                        decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                         alignment: Alignment.center,
                         child: _uploadingAvatar
                             ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -155,20 +156,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger)),
               ),
             if (_success != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
-                child: Text(_success!, style: const TextStyle(color: AppColors.success)),
+                child: Text(_success!, style: TextStyle(color: AppColors.success)),
               ),
 
-            const Text('Full name', style: AppText.label),
+            Text('Full name', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _nameController),
             const SizedBox(height: 16),
 
-            const Text('Phone', style: AppText.label),
+            Text('Phone', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _phoneController, keyboardType: TextInputType.phone),
             const SizedBox(height: 16),
@@ -181,16 +182,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Row(
                 children: [
                   Expanded(child: Text(user?.email ?? '', style: AppText.bodyMuted)),
-                  const Icon(Icons.lock_outline, size: 16, color: AppColors.textFaint),
+                  Icon(Icons.lock_outline, size: 16, color: AppColors.textFaint),
                 ],
               ),
             ),
             const SizedBox(height: 4),
-            const Text('Contact your administrator to change your email.', style: AppText.caption),
+            Text('Contact your administrator to change your email.', style: AppText.caption),
 
             if (isAdmin) ...[
               const SizedBox(height: 16),
-              const Text('New password (optional)', style: AppText.label),
+              Text('New password (optional)', style: AppText.label),
               const SizedBox(height: 6),
               TextField(
                 controller: _passwordController,
@@ -198,6 +199,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: const InputDecoration(hintText: 'Leave blank to keep current password'),
               ),
             ],
+
+            const SizedBox(height: 24),
+            _buildThemeToggle(),
 
             const SizedBox(height: 24),
             SizedBox(
@@ -214,12 +218,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: _confirmLogout,
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger, side: const BorderSide(color: AppColors.danger)),
+                style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger, side: BorderSide(color: AppColors.danger)),
                 child: const Text('Log out'),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildThemeToggle() {
+    final themeProvider = context.watch<ThemeProvider>();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(14)),
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        secondary: Icon(
+          themeProvider.isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+          color: AppColors.primary,
+        ),
+        title: const Text('Dark mode'),
+        subtitle: Text(themeProvider.isDark ? 'On' : 'Off', style: AppText.caption),
+        value: themeProvider.isDark,
+        activeColor: AppColors.primary,
+        onChanged: (value) => themeProvider.setDark(value),
       ),
     );
   }

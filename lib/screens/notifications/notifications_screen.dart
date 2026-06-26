@@ -98,7 +98,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ? ErrorView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: AppColors.primary,
+                  color: AppColors.loader,
                   child: _notifications.isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -131,7 +131,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     color: AppColors.primaryTint,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Icon(_iconForType(n.type), size: 18, color: AppColors.primary),
+                                  child: Icon(_iconForType(n.type), size: 18, color: AppColors.loader),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -155,7 +155,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     height: 8,
                                     margin: const EdgeInsets.only(top: 4),
                                     decoration: const BoxDecoration(
-                                      color: AppColors.primary,
+                                      color: AppColors.loader,
                                       shape: BoxShape.circle,
                                     ),
                                   ),

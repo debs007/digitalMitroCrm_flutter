@@ -266,7 +266,7 @@ class _DmChatScreenState extends State<DmChatScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+            child: Text('Delete', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -357,6 +357,7 @@ class _DmChatScreenState extends State<DmChatScreen> {
                                 message: msg,
                                 isSelf: isSelf,
                                 senderLabel: '',
+                                senderAvatar: isSelf ? null : widget.partnerAvatar,
                                 onReply: () => setState(() => _replyingTo = msg),
                                 onEdit: () => _handleEdit(msg),
                                 onDelete: () => _handleDelete(msg),

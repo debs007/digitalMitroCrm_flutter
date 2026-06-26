@@ -59,7 +59,7 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
         content: Text('${admin.name} will lose access immediately.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -100,7 +100,7 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
                   ? const EmptyView(message: 'No admins yet.', icon: Icons.shield_outlined)
                   : RefreshIndicator(
                       onRefresh: _load,
-                      color: AppColors.primary,
+                      color: AppColors.loader,
                       child: ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: _admins.length,
@@ -118,7 +118,7 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 20,
-                                  backgroundColor: AppColors.primary,
+                                  backgroundColor: AppColors.loader,
                                   child: Text(
                                     admin.name.isNotEmpty ? admin.name[0].toUpperCase() : '?',
                                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
@@ -136,11 +136,11 @@ class _ManageAdminsScreenState extends State<ManageAdminsScreen> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.tune, color: AppColors.primary),
+                                  icon: const Icon(Icons.tune, color: AppColors.loader),
                                   onPressed: () => _openEditor(admin),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                                  icon: Icon(Icons.delete_outline, color: AppColors.danger),
                                   onPressed: () => _confirmDelete(admin),
                                 ),
                               ],
@@ -213,25 +213,25 @@ class _CreateAdminScreenState extends State<_CreateAdminScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger)),
               ),
-            const Text('Name', style: AppText.label),
+            Text('Name', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _name),
             const SizedBox(height: 14),
-            const Text('Email', style: AppText.label),
+            Text('Email', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _email, keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 14),
-            const Text('Phone', style: AppText.label),
+            Text('Phone', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _phone, keyboardType: TextInputType.phone),
             const SizedBox(height: 14),
-            const Text('Temporary password', style: AppText.label),
+            Text('Temporary password', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _password, obscureText: true),
             const SizedBox(height: 8),
-            const Text('New admin starts with every permission off — grant access after creating.', style: AppText.caption),
+            Text('New admin starts with every permission off — grant access after creating.', style: AppText.caption),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

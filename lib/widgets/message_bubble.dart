@@ -22,6 +22,7 @@ class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isSelf;
   final String senderLabel;
+  final String? senderAvatar;
   final VoidCallback? onReply;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
@@ -33,6 +34,7 @@ class MessageBubble extends StatelessWidget {
     required this.message,
     required this.isSelf,
     required this.senderLabel,
+    this.senderAvatar,
     this.onReply,
     this.onEdit,
     this.onDelete,
@@ -66,8 +68,8 @@ class MessageBubble extends StatelessWidget {
                 onTap: () { Navigator.pop(ctx); onEdit?.call(); },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-                title: const Text('Delete', style: TextStyle(color: AppColors.danger)),
+                leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                title: Text('Delete', style: TextStyle(color: AppColors.danger)),
                 onTap: () { Navigator.pop(ctx); onDelete?.call(); },
               ),
             ],
@@ -89,7 +91,7 @@ class MessageBubble extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(12)),
-          child: Text(message.message, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          child: Text(message.message, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         ),
       );
     }
@@ -99,10 +101,15 @@ class MessageBubble extends StatelessWidget {
 
     return Align(
       alignment: isSelf ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isSelf) _senderAvatarWidget(),
+          GestureDetector(
         onLongPress: () => _showActions(context),
         child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.68),
           margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -122,7 +129,7 @@ class MessageBubble extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
                     senderLabel,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
                   ),
                 ),
               if (message.replyPreview?.message != null)
@@ -192,7 +199,29 @@ class MessageBubble extends StatelessWidget {
             ],
           ),
         ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _senderAvatarWidget() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6, bottom: 2),
+      child: senderAvatar != null && senderAvatar!.isNotEmpty
+          ? CircleAvatar(
+              radius: 13,
+              backgroundColor: AppColors.neutralBg,
+              backgroundImage: CachedNetworkImageProvider(senderAvatar!),
+            )
+          : CircleAvatar(
+              radius: 13,
+              backgroundColor: AppColors.primaryTint,
+              child: Text(
+                senderLabel.isNotEmpty ? senderLabel[0].toUpperCase() : '?',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+              ),
+            ),
     );
   }
 

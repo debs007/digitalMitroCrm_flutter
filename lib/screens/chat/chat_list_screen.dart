@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
 import '../../models/channel_model.dart';
 import '../../providers/nav_provider.dart';
 import '../../services/chat_list_service.dart';
+import '../../services/channel_service.dart';
 import 'dm_chat_screen.dart';
 import 'group_chat_screen.dart';
 import '../../widgets/app_avatar.dart';
+import '../../widgets/channel_logo.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/unread_badge.dart';
 
@@ -115,21 +116,93 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
         .then((_) => _load());
   }
 
+  Future<void> _openComposeMenu() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.person_outline, color: AppColors.primary),
+              title: const Text('New message'),
+              subtitle: const Text('Start a direct message with someone'),
+              onTap: () => Navigator.pop(ctx, 'dm'),
+            ),
+            ListTile(
+              leading: Icon(Icons.tag, color: AppColors.primary),
+              title: const Text('New channel'),
+              subtitle: const Text('Create a group for a team or topic'),
+              onTap: () => Navigator.pop(ctx, 'channel'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'dm') {
+      _openNewMessagePicker();
+    } else if (choice == 'channel') {
+      _openNewChannelForm();
+    }
+  }
+
+  Future<void> _openNewMessagePicker() async {
+    List<DmPickerUser> users;
+    try {
+      users = await ChatListService.instance.getAllUsersForDm();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : 'Could not load people.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    final selected = await showModalBottomSheet<DmPickerUser>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => _UserPickerSheet(users: users, title: 'New message'),
+    );
+    if (selected == null || !mounted) return;
+    _openDm(selected.id, selected.name, selected.avatar);
+  }
+
+  Future<void> _openNewChannelForm() async {
+    List<DmPickerUser> users;
+    try {
+      users = await ChatListService.instance.getAllUsersForDm();
+    } catch (_) {
+      users = []; // Non-fatal — channel creation still works with zero initial members besides yourself.
+    }
+    if (!mounted) return;
+
+    final createdChannelId = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: _CreateChannelSheet(allUsers: users),
+      ),
+    );
+    if (createdChannelId == null || !mounted) return;
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => context.read<NavProvider>().openDrawer(),
-        ),
         title: const Text('Chat'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Compose — coming in the next build phase.')),
-            ),
+            onPressed: _openComposeMenu,
           ),
         ],
       ),
@@ -170,35 +243,10 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   }
 
   /// Shows the channel's actual logo image when it has one set, otherwise
-  /// falls back to the "#" placeholder.
+  /// falls back to the "#" placeholder — see ChannelLogo for the shared
+  /// circular/contain-fit treatment used everywhere a channel logo appears.
   Widget _channelLeading(ChannelModel channel) {
-    final hasImage = channel.image.trim().isNotEmpty;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: hasImage
-          ? CachedNetworkImage(
-              imageUrl: channel.image,
-              width: 44,
-              height: 44,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => _channelPlaceholder(),
-              errorWidget: (_, __, ___) => _channelPlaceholder(),
-            )
-          : _channelPlaceholder(),
-    );
-  }
-
-  Widget _channelPlaceholder() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: const BoxDecoration(color: AppColors.primaryTint),
-      alignment: Alignment.center,
-      child: const Text(
-        '#',
-        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 18),
-      ),
-    );
+    return ChannelLogo(imageUrl: channel.image, size: 44);
   }
 
   Widget _buildChannelsTab() {
@@ -208,7 +256,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     }
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: channels.length,
@@ -250,7 +298,7 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
     }
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: conversations.length,
@@ -281,6 +329,193 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// "New message" — search + pick one person to DM.
+class _UserPickerSheet extends StatefulWidget {
+  final List<DmPickerUser> users;
+  final String title;
+  const _UserPickerSheet({required this.users, required this.title});
+
+  @override
+  State<_UserPickerSheet> createState() => _UserPickerSheetState();
+}
+
+class _UserPickerSheetState extends State<_UserPickerSheet> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<DmPickerUser> get _filtered {
+    final q = _search.text.trim().toLowerCase();
+    if (q.isEmpty) return widget.users;
+    return widget.users.where((u) => u.name.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(widget.title, style: AppText.h3),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _search,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(hintText: 'Search people...', prefixIcon: Icon(Icons.search, size: 20)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _filtered.isEmpty
+                  ? Center(child: Text('No one found.', style: AppText.bodyMuted))
+                  : ListView.builder(
+                      controller: scrollController,
+                      itemCount: _filtered.length,
+                      itemBuilder: (context, index) {
+                        final u = _filtered[index];
+                        return ListTile(
+                          leading: AppAvatar(name: u.name, imageUrl: u.avatar, size: 40),
+                          title: Text(u.name),
+                          onTap: () => Navigator.pop(context, u),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// "New channel" — name + description + optional initial members.
+class _CreateChannelSheet extends StatefulWidget {
+  final List<DmPickerUser> allUsers;
+  const _CreateChannelSheet({required this.allUsers});
+
+  @override
+  State<_CreateChannelSheet> createState() => _CreateChannelSheetState();
+}
+
+class _CreateChannelSheetState extends State<_CreateChannelSheet> {
+  final _name = TextEditingController();
+  final _description = TextEditingController();
+  final Set<String> _selectedMemberIds = {};
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_name.text.trim().isEmpty) {
+      setState(() => _error = 'Channel name is required.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final channelId = await ChannelService.instance.createChannel(
+        name: _name.text.trim(),
+        description: _description.text.trim(),
+        memberIds: _selectedMemberIds.toList(),
+      );
+      if (mounted) Navigator.pop(context, channelId);
+    } catch (e) {
+      setState(() {
+        _error = e is ApiException ? e.message : 'Could not create channel.';
+        _submitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('New Channel', style: AppText.h3),
+          const SizedBox(height: 16),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(_error!, style: TextStyle(color: AppColors.danger)),
+            ),
+          Text('Name', style: AppText.label),
+          const SizedBox(height: 6),
+          TextField(controller: _name, decoration: const InputDecoration(hintText: 'e.g. Marketing Team')),
+          const SizedBox(height: 14),
+          Text('Description (optional)', style: AppText.label),
+          const SizedBox(height: 6),
+          TextField(controller: _description, maxLines: 2, decoration: const InputDecoration(hintText: 'What is this channel for?')),
+          const SizedBox(height: 14),
+          Text('Add members (${_selectedMemberIds.length} selected)', style: AppText.label),
+          const SizedBox(height: 8),
+          if (widget.allUsers.isEmpty)
+            Text('No other users found.', style: AppText.bodyMuted)
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.allUsers.length,
+                itemBuilder: (context, index) {
+                  final u = widget.allUsers[index];
+                  final selected = _selectedMemberIds.contains(u.id);
+                  return CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: selected,
+                    title: Text(u.name),
+                    secondary: AppAvatar(name: u.name, imageUrl: u.avatar, size: 32),
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _selectedMemberIds.add(u.id);
+                      } else {
+                        _selectedMemberIds.remove(u.id);
+                      }
+                    }),
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : const Text('Create Channel'),
+            ),
+          ),
+        ],
       ),
     );
   }

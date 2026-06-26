@@ -94,7 +94,7 @@ class _AdminAttendanceViewState extends State<AdminAttendanceView> {
 
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),

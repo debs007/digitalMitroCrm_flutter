@@ -21,7 +21,7 @@ class _PinnedBannerState extends State<PinnedBanner> {
     if (widget.pinned.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.primarySoft,
         border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),
@@ -33,12 +33,12 @@ class _PinnedBannerState extends State<PinnedBanner> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.push_pin, size: 13, color: AppColors.warning),
+                  Icon(Icons.push_pin, size: 13, color: AppColors.warning),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       '${widget.pinned.length} pinned message${widget.pinned.length == 1 ? '' : 's'}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
                     ),
                   ),
                   Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 18, color: AppColors.primary),

@@ -95,7 +95,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
         content: Text(sheet.monthLabel),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -171,7 +171,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
     }
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _sheets.length,
@@ -203,7 +203,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
                       _deletingId == sheet.id
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                           : IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.danger),
+                              icon: Icon(Icons.delete_outline, size: 20, color: AppColors.danger),
                               onPressed: () => _deleteSheet(sheet),
                             ),
                   ],
@@ -224,7 +224,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
                           ),
                           Text(
                             row.inHandSalary.isNotEmpty ? '₹${row.inHandSalary}' : '—',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.success),
+                            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.success),
                           ),
                         ],
                       ),
@@ -243,7 +243,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
     }
     return RefreshIndicator(
       onRefresh: _load,
-      color: AppColors.primary,
+      color: AppColors.loader,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: _payslips.length,
@@ -264,7 +264,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.description_outlined, color: AppColors.primary),
+                  child: const Icon(Icons.description_outlined, color: AppColors.loader),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -279,7 +279,7 @@ class _SalaryScreenState extends State<SalaryScreen> with SingleTickerProviderSt
                 IconButton(
                   icon: isDownloading
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.download_outlined, color: AppColors.primary),
+                      : const Icon(Icons.download_outlined, color: AppColors.loader),
                   onPressed: isDownloading ? null : () => _downloadPayslip(p),
                 ),
               ],
@@ -362,9 +362,9 @@ class _UploadSalarySheetState extends State<_UploadSalarySheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Upload Salary Sheet', style: AppText.h3),
+          Text('Upload Salary Sheet', style: AppText.h3),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'CSV columns: EmpId, Email, Name, Position, Gross Salary, Attendance, Total Absent, In Hand Salary, Ptax, Remarks',
             style: AppText.caption,
           ),
@@ -372,10 +372,10 @@ class _UploadSalarySheetState extends State<_UploadSalarySheet> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+              child: Text(_error!, style: TextStyle(color: AppColors.danger)),
             ),
 
-          const Text('Month', style: AppText.label),
+          Text('Month', style: AppText.label),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
@@ -392,7 +392,7 @@ class _UploadSalarySheetState extends State<_UploadSalarySheet> {
           ),
           const SizedBox(height: 16),
 
-          const Text('Year', style: AppText.label),
+          Text('Year', style: AppText.label),
           const SizedBox(height: 8),
           Wrap(
             spacing: 6,
@@ -404,12 +404,12 @@ class _UploadSalarySheetState extends State<_UploadSalarySheet> {
           ),
           const SizedBox(height: 16),
 
-          const Text('Title (optional)', style: AppText.label),
+          Text('Title (optional)', style: AppText.label),
           const SizedBox(height: 8),
           TextField(controller: _titleController, decoration: const InputDecoration(hintText: 'e.g. June 2026 Payroll')),
           const SizedBox(height: 16),
 
-          const Text('CSV file', style: AppText.label),
+          Text('CSV file', style: AppText.label),
           const SizedBox(height: 8),
           InkWell(
             onTap: _pickCsv,
@@ -419,7 +419,7 @@ class _UploadSalarySheetState extends State<_UploadSalarySheet> {
               decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(12)),
               child: Row(
                 children: [
-                  const Icon(Icons.attach_file, size: 18, color: AppColors.textSecondary),
+                  Icon(Icons.attach_file, size: 18, color: AppColors.textSecondary),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(

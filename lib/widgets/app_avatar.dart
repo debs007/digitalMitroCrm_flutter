@@ -46,18 +46,25 @@ class AppAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
 
-    final core = ClipRRect(
-      borderRadius: BorderRadius.circular(size / 2),
-      child: hasImage
-          ? CachedNetworkImage(
-              imageUrl: imageUrl!,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => _initialsCircle(),
-              errorWidget: (_, __, ___) => _initialsCircle(),
-            )
-          : _initialsCircle(),
+    final core = Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(1.5),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.divider, width: 1.5),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size / 2),
+        child: hasImage
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => _initialsCircle(),
+                errorWidget: (_, __, ___) => _initialsCircle(),
+              )
+            : _initialsCircle(),
+      ),
     );
 
     if (badge == null) return core;

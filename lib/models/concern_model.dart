@@ -2,6 +2,7 @@ class ConcernModel {
   final String id;
   final String userId;
   final String userName;
+  final String userAvatar;
   final String concernType;
   final String message;
   final String? concernDate;
@@ -14,6 +15,7 @@ class ConcernModel {
     required this.id,
     required this.userId,
     required this.userName,
+    required this.userAvatar,
     required this.concernType,
     required this.message,
     this.concernDate,
@@ -36,9 +38,11 @@ class ConcernModel {
     final userIdRaw = json['user_id'];
     String userId = '';
     String userName = '';
+    String userAvatar = '';
     if (userIdRaw is Map) {
       userId = userIdRaw['_id']?.toString() ?? '';
       userName = userIdRaw['name']?.toString() ?? '';
+      userAvatar = userIdRaw['avatar']?.toString() ?? '';
     } else {
       userId = userIdRaw?.toString() ?? '';
     }
@@ -47,6 +51,7 @@ class ConcernModel {
       id: (json['_id'] ?? '').toString(),
       userId: userId,
       userName: userName,
+      userAvatar: userAvatar,
       concernType: json['concernType']?.toString() ?? '',
       message: json['message']?.toString() ?? '',
       concernDate: json['ConcernDate']?.toString(),

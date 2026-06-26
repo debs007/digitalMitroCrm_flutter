@@ -75,7 +75,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
         content: Text('${e.name} will be marked as removed.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -126,7 +126,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                         ? const EmptyView(message: 'No employees found.', icon: Icons.people_outline)
                         : RefreshIndicator(
                             onRefresh: _load,
-                            color: AppColors.primary,
+                            color: AppColors.loader,
                             child: ListView.separated(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               itemCount: _filtered.length,
@@ -166,10 +166,10 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                                           ],
                                         ),
                                       ),
-                                      const Icon(Icons.chevron_right, color: AppColors.textFaint),
+                                      Icon(Icons.chevron_right, color: AppColors.textFaint),
                                       if (canDelete)
                                         IconButton(
-                                          icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+                                          icon: Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
                                           onPressed: () => _confirmDelete(e),
                                         ),
                                     ],
@@ -188,7 +188,7 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
   Widget _miniChip(String label) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(10)),
-        child: Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+        child: Text(label, style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
       );
 }
 
@@ -256,25 +256,25 @@ class _CreateEmployeeScreenState extends State<_CreateEmployeeScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger)),
               ),
-            const Text('Name', style: AppText.label),
+            Text('Name', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _name),
             const SizedBox(height: 14),
-            const Text('Email', style: AppText.label),
+            Text('Email', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _email, keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 14),
-            const Text('Phone', style: AppText.label),
+            Text('Phone', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _phone, keyboardType: TextInputType.phone),
             const SizedBox(height: 14),
-            const Text('Temporary password', style: AppText.label),
+            Text('Temporary password', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _password, obscureText: true),
             const SizedBox(height: 14),
-            const Text('Shift', style: AppText.label),
+            Text('Shift', style: AppText.label),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -285,7 +285,7 @@ class _CreateEmployeeScreenState extends State<_CreateEmployeeScreen> {
               )).toList(),
             ),
             const SizedBox(height: 14),
-            const Text('Employment type', style: AppText.label),
+            Text('Employment type', style: AppText.label),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,

@@ -9,15 +9,16 @@ import '../core/theme/app_colors.dart';
 class LinkifyText extends StatelessWidget {
   final String text;
   final TextStyle? style;
-  final Color linkColor;
+  final Color? linkColor;
 
-  const LinkifyText({super.key, required this.text, this.style, this.linkColor = AppColors.info});
+  LinkifyText({super.key, required this.text, this.style, this.linkColor});
 
   static final _urlRegex = RegExp(r'((?:https?:\/\/|www\.)[^\s<>"]+)', caseSensitive: false);
 
   @override
   Widget build(BuildContext context) {
     final baseStyle = style ?? DefaultTextStyle.of(context).style;
+    final resolvedLinkColor = linkColor ?? AppColors.info;
     final matches = _urlRegex.allMatches(text);
 
     if (matches.isEmpty) {
@@ -36,7 +37,7 @@ class LinkifyText extends StatelessWidget {
       spans.add(
         TextSpan(
           text: trimmedUrl,
-          style: TextStyle(color: linkColor, decoration: TextDecoration.underline),
+          style: TextStyle(color: resolvedLinkColor, decoration: TextDecoration.underline),
           recognizer: TapGestureRecognizer()
             ..onTap = () async {
               final uri = Uri.tryParse(fullUrl);

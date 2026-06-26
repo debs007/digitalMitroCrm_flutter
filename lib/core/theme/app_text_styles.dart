@@ -8,7 +8,7 @@ class AppText {
 
   static const String _family = 'Roboto';
 
-  static const TextStyle h1 = TextStyle(
+  static TextStyle get h1 => TextStyle(
     fontFamily: _family,
     fontSize: 26,
     fontWeight: FontWeight.w800,
@@ -16,63 +16,63 @@ class AppText {
     letterSpacing: -0.5,
   );
 
-  static const TextStyle h2 = TextStyle(
+  static TextStyle get h2 => TextStyle(
     fontFamily: _family,
     fontSize: 20,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
   );
 
-  static const TextStyle h3 = TextStyle(
+  static TextStyle get h3 => TextStyle(
     fontFamily: _family,
     fontSize: 17,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,
   );
 
-  static const TextStyle bodyLarge = TextStyle(
+  static TextStyle get bodyLarge => TextStyle(
     fontFamily: _family,
     fontSize: 15,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,
   );
 
-  static const TextStyle body = TextStyle(
+  static TextStyle get body => TextStyle(
     fontFamily: _family,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
   );
 
-  static const TextStyle bodyMuted = TextStyle(
+  static TextStyle get bodyMuted => TextStyle(
     fontFamily: _family,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
-  static const TextStyle caption = TextStyle(
+  static TextStyle get caption => TextStyle(
     fontFamily: _family,
     fontSize: 12,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
 
-  static const TextStyle captionBold = TextStyle(
+  static TextStyle get captionBold => TextStyle(
     fontFamily: _family,
     fontSize: 12,
     fontWeight: FontWeight.w700,
     color: AppColors.textSecondary,
   );
 
-  static const TextStyle button = TextStyle(
+  static TextStyle get button => TextStyle(
     fontFamily: _family,
     fontSize: 16,
     fontWeight: FontWeight.w700,
     color: Colors.white,
   );
 
-  static const TextStyle label = TextStyle(
+  static TextStyle get label => TextStyle(
     fontFamily: _family,
     fontSize: 13,
     fontWeight: FontWeight.w600,

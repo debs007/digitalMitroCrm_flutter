@@ -121,14 +121,14 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                child: Text(_error!, style: TextStyle(color: AppColors.danger)),
               ),
-            const Text('Title', style: AppText.label),
+            Text('Title', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _titleController, decoration: const InputDecoration(hintText: 'e.g. Review landing page copy')),
             const SizedBox(height: 16),
 
-            const Text('Description', style: AppText.label),
+            Text('Description', style: AppText.label),
             const SizedBox(height: 6),
             TextField(
               controller: _descriptionController,
@@ -137,7 +137,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             ),
             const SizedBox(height: 16),
 
-            const Text('Deadline', style: AppText.label),
+            Text('Deadline', style: AppText.label),
             const SizedBox(height: 6),
             InkWell(
               onTap: _pickDeadline,
@@ -146,7 +146,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
                 decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.textSecondary),
+                    Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.textSecondary),
                     const SizedBox(width: 10),
                     Text(
                       _deadline == null ? 'Select date & time' : DateFormat('d MMM yyyy, hh:mm a').format(_deadline!),
@@ -158,7 +158,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             ),
             const SizedBox(height: 16),
 
-            const Text('Priority', style: AppText.label),
+            Text('Priority', style: AppText.label),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -178,7 +178,7 @@ class _CreateTaskScreenState extends State<CreateTaskScreen> {
             ),
             const SizedBox(height: 16),
 
-            const Text('Assign to', style: AppText.label),
+            Text('Assign to', style: AppText.label),
             const SizedBox(height: 8),
             _loadingMembers
                 ? const Padding(

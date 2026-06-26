@@ -24,6 +24,17 @@ class TaskService {
     return [];
   }
 
+  /// Tasks for one specific channel — used by the "View Tasks" menu item
+  /// inside a group chat, as opposed to [getAllTasks]'s grouped overview.
+  Future<List<TaskModel>> getChannelTasks(String channelId) async {
+    final res = await _api.get(ApiConstants.channelTasks(channelId));
+    final tasks = res['tasks'];
+    if (tasks is List) {
+      return tasks.map((t) => TaskModel.fromJson(Map<String, dynamic>.from(t))).toList();
+    }
+    return [];
+  }
+
   Future<int> getPendingCount() async {
     final res = await _api.get(ApiConstants.pendingTasksCount);
     final count = res['pendingCount'];

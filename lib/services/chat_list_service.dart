@@ -40,4 +40,28 @@ class ChatListService {
     final dmTotal = conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
     return channelTotal + dmTotal;
   }
+
+  /// Every user in the company as {id, name, avatar} — works for any
+  /// logged-in user (employee, admin, ...), unlike EmployeeService.getAll()
+  /// which is admin-only. Used for the "start a new DM" picker.
+  Future<List<DmPickerUser>> getAllUsersForDm() async {
+    final res = await _api.get(ApiConstants.allUsersLight);
+    final list = res['users'];
+    if (list is List) {
+      return list.map((u) => DmPickerUser.fromJson(Map<String, dynamic>.from(u))).toList();
+    }
+    return [];
+  }
+}
+
+class DmPickerUser {
+  final String id;
+  final String name;
+  final String avatar;
+  DmPickerUser({required this.id, required this.name, required this.avatar});
+  factory DmPickerUser.fromJson(Map<String, dynamic> json) => DmPickerUser(
+        id: (json['_id'] ?? '').toString(),
+        name: json['name']?.toString() ?? '',
+        avatar: json['avatar']?.toString() ?? '',
+      );
 }

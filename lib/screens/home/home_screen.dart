@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/network/socket_service.dart';
 import '../../models/dashboard_model.dart';
 import '../../models/attendance_model.dart';
 import '../../providers/auth_provider.dart';
@@ -31,10 +32,35 @@ class _HomeScreenState extends State<HomeScreen> {
   int _teamTotalCount = 0;
   bool _punchActionLoading = false;
 
+  void Function(dynamic)? _onNewMessage;
+  void Function(dynamic)? _onUpdateUnread;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _registerSocketListeners();
+  }
+
+  @override
+  void dispose() {
+    final socket = SocketService.instance;
+    if (_onNewMessage != null) socket.off('new-message', _onNewMessage);
+    if (_onUpdateUnread != null) socket.off('updateUnread', _onUpdateUnread);
+    super.dispose();
+  }
+
+  /// Home sits inside AppShell's IndexedStack, which keeps every tab's
+  /// State alive forever and never re-runs initState — so without this,
+  /// the "Messages" tile would only ever reflect whatever the unread count
+  /// was the moment the app first launched the Home tab, staying stuck at
+  /// that stale number (often 0) for the rest of the session.
+  void _registerSocketListeners() {
+    final socket = SocketService.instance;
+    _onNewMessage = (_) => _load();
+    socket.on('new-message', _onNewMessage!);
+    _onUpdateUnread = (_) => _load();
+    socket.on('updateUnread', _onUpdateUnread!);
   }
 
   Future<void> _load() async {
@@ -103,9 +129,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => context.read<NavProvider>().openDrawer(),
+        leading: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
         ),
         title: const Text('Digital Mitro'),
         actions: [
@@ -124,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
                   ),
                 ),
             ],
@@ -138,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ? ErrorView(message: _error!, onRetry: _load)
               : RefreshIndicator(
                   onRefresh: _load,
-                  color: AppColors.primary,
+                  color: AppColors.loader,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
@@ -147,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text('${_greeting()}, ${user?.name.split(' ').first ?? ''}! 👋', style: AppText.h2),
                         const SizedBox(height: 4),
-                        const Text("Here's what's happening today.", style: AppText.bodyMuted),
+                        Text("Here's what's happening today.", style: AppText.bodyMuted),
                         const SizedBox(height: 20),
 
                         // Punch in/out card — employees only, admins don't clock in/out
@@ -170,8 +196,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               value: _pendingTaskCount.toString(),
                               subtitle: 'Due today',
                               icon: Icons.checklist_rtl,
-                              iconColor: AppColors.primary,
+                              iconColor: AppColors.loader,
                               iconBg: AppColors.primaryTint,
+                              onTap: () => context.read<NavProvider>().setIndex(1),
                             ),
                             StatCard(
                               title: (user?.isAdmin ?? false) ? 'Team Present' : 'Attendance',
@@ -184,6 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               icon: Icons.calendar_today_outlined,
                               iconColor: AppColors.info,
                               iconBg: AppColors.infoBg,
+                              onTap: () => context.read<NavProvider>().setIndex(2),
                             ),
                             StatCard(
                               title: 'Messages',
@@ -192,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               icon: Icons.chat_bubble_outline,
                               iconColor: AppColors.success,
                               iconBg: AppColors.successBg,
+                              onTap: () => context.read<NavProvider>().setIndex(3),
                             ),
                             StatCard(
                               title: 'Notifications',
@@ -200,6 +229,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               icon: Icons.notifications_outlined,
                               iconColor: AppColors.warning,
                               iconBg: AppColors.warningBg,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                              ),
                             ),
                           ],
                         ),
@@ -208,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Recent Activity', style: AppText.h3),
+                            Text('Recent Activity', style: AppText.h3),
                             TextButton(
                               onPressed: () => Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -270,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader),
                       )
                     : Text(isPunchedIn ? 'Clock Out' : 'Clock In'),
               ),
@@ -332,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(color: AppColors.primaryTint, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.notifications_none, size: 18, color: AppColors.primary),
+                child: Icon(Icons.notifications_none, size: 18, color: AppColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(

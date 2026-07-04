@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
+import 'core/navigation/navigation_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash/splash_screen.dart';
+import 'services/push_notification_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Must be registered here at startup, before runApp — this is what lets
+  // a notification be received and shown by the OS even while the app is
+  // fully closed or backgrounded, not just while it's open.
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const DigitalMitroApp());
 }
 
@@ -29,6 +40,9 @@ class DigitalMitroApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           return MaterialApp(
+            // Lets push-notification tap handling navigate from outside
+            // the widget tree (no BuildContext available there).
+            navigatorKey: NavigationService.navigatorKey,
             // Most screens read colours from AppColors' static getters
             // inside their own build() methods, not via Theme.of(context)
             // — so a normal Provider rebuild doesn't reach them; only

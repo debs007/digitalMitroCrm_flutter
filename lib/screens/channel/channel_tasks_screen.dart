@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -26,11 +27,24 @@ class _ChannelTasksScreenState extends State<ChannelTasksScreen> {
   String? _error;
   List<TaskModel> _tasks = [];
   String? _busyTaskId;
+  String? _expandedTaskId;
+  void Function(dynamic)? _onSoftRefresh;
 
   @override
   void initState() {
     super.initState();
     _load();
+    final socket = SocketService.instance;
+    _onSoftRefresh = (data) {
+      if (data is Map && data['type']?.toString() == 'TASK') _load();
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
+  }
+
+  @override
+  void dispose() {
+    if (_onSoftRefresh != null) SocketService.instance.off('soft-refresh', _onSoftRefresh);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -119,79 +133,119 @@ class _ChannelTasksScreenState extends State<ChannelTasksScreen> {
                         itemBuilder: (context, index) {
                           final task = _tasks[index];
                           final isBusy = _busyTaskId == task.id;
-                          return Container(
+                          final isExpanded = _expandedTaskId == task.id;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => setState(() => _expandedTaskId = isExpanded ? null : task.id),
+                            child: Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppColors.divider),
+                              border: Border.all(color: isExpanded ? AppColors.primary : AppColors.divider),
                             ),
-                            child: Row(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                isBusy
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(4),
-                                        child: SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader),
-                                        ),
-                                      )
-                                    : Checkbox(value: task.isDone, onChanged: (_) => _toggleComplete(task)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        task.title,
-                                        style: AppText.bodyLarge.copyWith(
-                                          decoration: task.isDone ? TextDecoration.lineThrough : null,
-                                          color: task.isDone ? AppColors.textFaint : AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      if (task.assignedToUser != null) ...[
-                                        const SizedBox(height: 2),
-                                        Text('Assigned to ${task.assignedToUser!.name}', style: AppText.caption),
-                                      ],
-                                      const SizedBox(height: 6),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 6,
-                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          StatusChip(
-                                            label: task.isDone ? 'Completed' : _dueLabel(task.deadline),
-                                            color: _dueColor(task.deadline, task.isDone),
-                                            background: _dueColor(task.deadline, task.isDone).withValues(alpha: 0.12),
+                                          Text(
+                                            task.title,
+                                            style: AppText.bodyLarge.copyWith(
+                                              decoration: task.isDone ? TextDecoration.lineThrough : null,
+                                              color: task.isDone ? AppColors.textFaint : AppColors.textPrimary,
+                                            ),
                                           ),
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
+                                          if (task.assignedToUser != null) ...[
+                                            const SizedBox(height: 2),
+                                            Text('Assigned to ${task.assignedToUser!.name}', style: AppText.caption),
+                                          ],
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 6,
+                                            crossAxisAlignment: WrapCrossAlignment.center,
                                             children: [
-                                              Icon(Icons.arrow_upward, size: 11, color: AppColors.priorityColor(task.priority)),
-                                              const SizedBox(width: 2),
-                                              Text(
-                                                task.priority,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppColors.priorityColor(task.priority),
-                                                ),
+                                              StatusChip(
+                                                label: task.isDone ? 'Completed' : _dueLabel(task.deadline),
+                                                color: _dueColor(task.deadline, task.isDone),
+                                                background: _dueColor(task.deadline, task.isDone).withValues(alpha: 0.12),
+                                              ),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.arrow_upward, size: 11, color: AppColors.priorityColor(task.priority)),
+                                                  const SizedBox(width: 2),
+                                                  Text(
+                                                    task.priority,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.priorityColor(task.priority),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.textFaint),
+                                  ],
                                 ),
+                                if (isExpanded) ...[
+                                  const Divider(height: 18),
+                                  if (task.taskNumber.isNotEmpty) _detailRow('Task #', task.taskNumber),
+                                  _detailRow('Deadline', DateFormat('d MMM yyyy, hh:mm a').format(task.deadline)),
+                                  if (task.createdByUser != null) _detailRow('Created by', task.createdByUser!.name),
+                                  if (task.completedAt != null)
+                                    _detailRow('Completed', DateFormat('d MMM yyyy, hh:mm a').format(task.completedAt!)),
+                                  if (task.tags.isNotEmpty) _detailRow('Tags', task.tags.join(', ')),
+                                  const SizedBox(height: 4),
+                                  Text('Description', style: AppText.label),
+                                  const SizedBox(height: 4),
+                                  Text(task.description.isNotEmpty ? task.description : 'No description.', style: AppText.body),
+                                  if (!task.isDone) ...[
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton.icon(
+                                        onPressed: isBusy ? null : () => _toggleComplete(task),
+                                        icon: isBusy
+                                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader))
+                                            : const Icon(Icons.check_circle_outline, size: 18),
+                                        label: Text(isBusy ? 'Updating...' : 'Mark as complete'),
+                                        style: OutlinedButton.styleFrom(foregroundColor: AppColors.success, side: BorderSide(color: AppColors.success)),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ],
+                            ),
                             ),
                           );
                         },
                       ),
                     ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 90, child: Text(label, style: AppText.caption)),
+          Expanded(child: Text(value, style: AppText.body)),
+        ],
+      ),
     );
   }
 }

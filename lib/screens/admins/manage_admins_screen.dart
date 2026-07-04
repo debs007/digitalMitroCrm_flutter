@@ -167,6 +167,10 @@ class _CreateAdminScreenState extends State<_CreateAdminScreen> {
   final _password = TextEditingController();
   bool _submitting = false;
   String? _error;
+  AdminPermissions _permissions = AdminPermissions.empty();
+
+  void _grantAll() => setState(() => _permissions = AdminPermissions.allGranted());
+  void _revokeAll() => setState(() => _permissions = AdminPermissions.empty());
 
   @override
   void dispose() {
@@ -191,6 +195,7 @@ class _CreateAdminScreenState extends State<_CreateAdminScreen> {
         email: _email.text.trim(),
         phone: _phone.text.trim(),
         password: _password.text,
+        permissions: _permissions,
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -230,8 +235,71 @@ class _CreateAdminScreenState extends State<_CreateAdminScreen> {
             Text('Temporary password', style: AppText.label),
             const SizedBox(height: 6),
             TextField(controller: _password, obscureText: true),
+            const SizedBox(height: 20),
+
+            // Permissions — set right here at creation time so the new
+            // admin isn't locked out of everything until someone
+            // remembers to come back and grant access separately.
+            Row(
+              children: [
+                Text('Permissions', style: AppText.h3),
+                const Spacer(),
+                TextButton(onPressed: _grantAll, child: const Text('Grant all')),
+                TextButton(
+                  onPressed: _revokeAll,
+                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                  child: const Text('None'),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            Text('New admin starts with every permission off — grant access after creating.', style: AppText.caption),
+
+            Text('Sidebar access', style: AppText.captionBold),
+            const SizedBox(height: 4),
+            ...kAdminSidebarLabels.entries.map((entry) => SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(entry.value),
+                  value: _permissions.get(entry.key, 'access'),
+                  activeColor: AppColors.primary,
+                  onChanged: (v) => setState(() => _permissions = _permissions.copyWith(entry.key, 'access', v)),
+                )),
+            const SizedBox(height: 12),
+
+            Text('Actions', style: AppText.captionBold),
+            const SizedBox(height: 6),
+            ...AdminPermissions.actionGroups.entries.map((group) {
+              final groupKey = group.key;
+              final actions = group.value;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(14)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(kAdminActionGroupLabels[groupKey] ?? groupKey, style: AppText.captionBold),
+                    const SizedBox(height: 4),
+                    ...actions.map((action) {
+                      final label = action.substring(0, 1).toUpperCase() + action.substring(1);
+                      return SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(label),
+                        value: _permissions.get(groupKey, action),
+                        activeColor: AppColors.primary,
+                        onChanged: (v) => setState(() => _permissions = _permissions.copyWith(groupKey, action, v)),
+                      );
+                    }),
+                  ],
+                ),
+              );
+            }),
+
+            Text(
+              'Scope (which employees/channels this admin can manage) defaults to "all" — adjust it after creation if needed.',
+              style: AppText.caption,
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -259,6 +327,19 @@ class _AdminEditorScreen extends StatefulWidget {
   State<_AdminEditorScreen> createState() => _AdminEditorScreenState();
 }
 
+/// Shared between the create-admin and edit-admin screens so both render
+/// the exact same permission toggles.
+const Map<String, String> kAdminSidebarLabels = {
+  'notes': 'Notes', 'callbacks': 'Callbacks', 'attendance': 'Attendance',
+  'transfer': 'Transfer', 'sales': 'Sales', 'activity': 'Activity',
+  'concern': 'Concerns', 'notification': 'Notifications', 'tasks': 'Tasks', 'salary': 'Salary',
+};
+
+const Map<String, String> kAdminActionGroupLabels = {
+  'task': 'Tasks', 'channel': 'Channels', 'salarySheet': 'Salary Sheet',
+  'payslip': 'Payslips', 'report': 'Reports', 'taskManagement': 'Task Mgmt', 'employee': 'Employee Mgmt',
+};
+
 class _AdminEditorScreenState extends State<_AdminEditorScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late AdminPermissions _permissions;
@@ -271,17 +352,6 @@ class _AdminEditorScreenState extends State<_AdminEditorScreen> with SingleTicke
   List<PickerChannel> _allChannelsList = [];
   bool _loadingPickers = true;
   bool _saving = false;
-
-  static const Map<String, String> _sidebarLabels = {
-    'notes': 'Notes', 'callbacks': 'Callbacks', 'attendance': 'Attendance',
-    'transfer': 'Transfer', 'sales': 'Sales', 'activity': 'Activity',
-    'concern': 'Concerns', 'notification': 'Notifications', 'tasks': 'Tasks', 'salary': 'Salary',
-  };
-
-  static const Map<String, String> _actionGroupLabels = {
-    'task': 'Tasks', 'channel': 'Channels', 'salarySheet': 'Salary Sheet',
-    'payslip': 'Payslips', 'report': 'Reports', 'taskManagement': 'Task Mgmt', 'employee': 'Employee Mgmt',
-  };
 
   @override
   void initState() {
@@ -421,7 +491,7 @@ class _AdminEditorScreenState extends State<_AdminEditorScreen> with SingleTicke
           ],
         ),
         const SizedBox(height: 16),
-        ..._sidebarLabels.entries.map((entry) => SwitchListTile(
+        ...kAdminSidebarLabels.entries.map((entry) => SwitchListTile(
               title: Text(entry.value),
               value: _permissions.get(entry.key, 'access'),
               activeColor: AppColors.primary,
@@ -447,7 +517,7 @@ class _AdminEditorScreenState extends State<_AdminEditorScreen> with SingleTicke
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_actionGroupLabels[groupKey] ?? groupKey, style: AppText.captionBold),
+              Text(kAdminActionGroupLabels[groupKey] ?? groupKey, style: AppText.captionBold),
               const SizedBox(height: 6),
               ...actions.map((action) {
                 final label = action.substring(0, 1).toUpperCase() + action.substring(1);

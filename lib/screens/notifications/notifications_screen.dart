@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -18,11 +19,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoading = true;
   String? _error;
   List<NotificationModel> _notifications = [];
+  void Function(dynamic)? _onReceiveNotification;
 
   @override
   void initState() {
     super.initState();
     _load();
+    final socket = SocketService.instance;
+    _onReceiveNotification = (_) => _load();
+    socket.on('receive-notification', _onReceiveNotification!);
+  }
+
+  @override
+  void dispose() {
+    if (_onReceiveNotification != null) {
+      SocketService.instance.off('receive-notification', _onReceiveNotification);
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {

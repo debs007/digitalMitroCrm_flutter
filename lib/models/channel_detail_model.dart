@@ -16,6 +16,39 @@ class ChannelMember {
   }
 }
 
+/// purpose/industry/website/location — the 4 free-text fields the backend
+/// groups under channelDetails, separate from the top-level description.
+class ChannelExtraDetails {
+  final String purpose;
+  final String industry;
+  final String website;
+  final String location;
+
+  ChannelExtraDetails({
+    this.purpose = '',
+    this.industry = '',
+    this.website = '',
+    this.location = '',
+  });
+
+  factory ChannelExtraDetails.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return ChannelExtraDetails();
+    return ChannelExtraDetails(
+      purpose: json['purpose']?.toString() ?? '',
+      industry: json['industry']?.toString() ?? '',
+      website: json['website']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'purpose': purpose,
+        'industry': industry,
+        'website': website,
+        'location': location,
+      };
+}
+
 /// Full channel detail — GET /api/:id returns the channel with `members`
 /// resolved to {_id, name, email, avatar} instead of raw ObjectIds.
 class ChannelDetail {
@@ -27,6 +60,7 @@ class ChannelDetail {
   final List<String> tags;
   final List<ChannelMember> members;
   final String? ownerId;
+  final ChannelExtraDetails extraDetails;
 
   ChannelDetail({
     required this.id,
@@ -37,7 +71,8 @@ class ChannelDetail {
     required this.tags,
     required this.members,
     this.ownerId,
-  });
+    ChannelExtraDetails? extraDetails,
+  }) : extraDetails = extraDetails ?? ChannelExtraDetails();
 
   factory ChannelDetail.fromJson(Map<String, dynamic> json) {
     return ChannelDetail(
@@ -54,6 +89,9 @@ class ChannelDetail {
               .toList()
           : [],
       ownerId: json['owner']?.toString(),
+      extraDetails: ChannelExtraDetails.fromJson(
+        json['channelDetails'] is Map ? Map<String, dynamic>.from(json['channelDetails']) : null,
+      ),
     );
   }
 }

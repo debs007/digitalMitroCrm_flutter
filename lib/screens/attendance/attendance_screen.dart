@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/network/socket_service.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -23,12 +24,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   AttendanceRecord? _today;
   List<AttendanceRecord> _history = [];
   bool _punchLoading = false;
+  void Function(dynamic)? _onSoftRefresh;
 
   @override
   void initState() {
     super.initState();
     final isAdmin = context.read<AuthProvider>().user?.isAdmin ?? false;
     if (!isAdmin) _load();
+    final socket = SocketService.instance;
+    _onSoftRefresh = (data) {
+      if (data is Map && data['type']?.toString() == 'Attendence' && !isAdmin) _load();
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
+  }
+
+  @override
+  void dispose() {
+    if (_onSoftRefresh != null) SocketService.instance.off('soft-refresh', _onSoftRefresh);
+    super.dispose();
   }
 
   Future<void> _load() async {

@@ -46,13 +46,14 @@ class SuperAdminService {
     required String email,
     required String phone,
     required String password,
+    AdminPermissions? permissions,
   }) async {
     await _api.post(ApiConstants.saAdmins, data: {
       'name': name,
       'email': email,
       'phone': phone,
       'password': password,
-      'permissions': AdminPermissions.empty().toJson(),
+      'permissions': (permissions ?? AdminPermissions.empty()).toJson(),
     });
   }
 

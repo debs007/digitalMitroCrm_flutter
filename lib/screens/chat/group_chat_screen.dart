@@ -1,9 +1,11 @@
 import 'dart:io';
-import 'package:digital_mitro/screens/channel/edit_channel_screen.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/socket_service.dart';
 import '../../models/message_model.dart';
@@ -17,7 +19,7 @@ import '../../widgets/pinned_banner.dart';
 import '../../widgets/state_views.dart';
 import '../channel/channel_members_screen.dart';
 import '../channel/channel_tasks_screen.dart';
-//import '../channel/edit_channel_screen.dart';
+import '../channel/edit_channel_screen.dart';
 import '../tasks/create_task_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
@@ -50,10 +52,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Map<String, String> _memberNames = {};
   Map<String, String> _memberAvatars = {};
   String? _channelImage;
+  String _channelStatus = 'Active';
   bool _sharing = false;
   void Function(dynamic)? _onNewMessage;
   void Function(dynamic)? _onMessageUpdated;
   void Function(dynamic)? _onPinned;
+  void Function(dynamic)? _onReacted;
 
   @override
   void initState() {
@@ -78,6 +82,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         _memberAvatars = {for (final m in detail.members) m.id: m.avatar};
         _channelImage = detail.image;
         _displayName = detail.name;
+        _channelStatus = detail.statusTag;
       });
     } catch (_) {
       // Non-fatal — sender labels/avatars and the header logo just fall
@@ -92,6 +97,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (_onNewMessage != null) socket.off('new-channel-message', _onNewMessage);
     if (_onMessageUpdated != null) socket.off('channel-message-updated', _onMessageUpdated);
     if (_onPinned != null) socket.off('channel-message-pinned', _onPinned);
+    if (_onReacted != null) socket.off('channel-message-reacted', _onReacted);
     super.dispose();
   }
 
@@ -133,6 +139,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
     };
     socket.on('channel-message-pinned', _onPinned!);
+
+    _onReacted = (data) {
+      if (!mounted || data is! Map) return;
+      final id = data['messageId']?.toString();
+      final rawReactions = data['reactions'];
+      if (rawReactions is! List) return;
+      final reactions = rawReactions
+          .map((r) => MessageReaction.fromJson(Map<String, dynamic>.from(r)))
+          .toList();
+      setState(() {
+        final idx = _messages.indexWhere((m) => m.id == id);
+        if (idx != -1) _messages[idx] = _messages[idx].copyWith(reactions: reactions);
+      });
+    };
+    socket.on('channel-message-reacted', _onReacted!);
   }
 
   void _onScroll() {
@@ -309,6 +330,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
+  Future<void> _handleToggleReaction(ChatMessage message, String emoji) async {
+    try {
+      final reactions = await ChannelService.instance.toggleReaction(messageId: message.id, emoji: emoji);
+      _patchMessage(message.id, (m) => m.copyWith(reactions: reactions));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : 'Could not react.')),
+        );
+      }
+    }
+  }
+
   /// Replaces a message in [_messages] by id with the result of [update] —
   /// the shared helper behind every optimistic local edit/delete/pin above.
   void _patchMessage(String id, ChatMessage Function(ChatMessage) update) {
@@ -335,14 +369,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
   }
 
-  Future<void> _handleEditChannel(String currentName) async {
+  void _handleReports() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _ChannelReportsSheet(
+        channelId: widget.channelId,
+        channelName: _displayName ?? widget.channelName,
+        isAdmin: _isAdmin,
+      ),
+    );
+  }
+
+  Future<void> _handleEditChannel() async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EditChannelScreen(
-          channelId: widget.channelId,
-          currentName: currentName,
-          currentImage: _channelImage,
-        ),
+        builder: (_) => EditChannelScreen(channelId: widget.channelId),
       ),
     );
     if (saved == true) _loadChannelDetail();
@@ -353,11 +396,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final effectiveName = _displayName ?? widget.channelName;
 
     return Scaffold(
+      backgroundColor: AppColors.primarySoft,
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
           children: [
-            ChannelLogo(imageUrl: _channelImage, size: 36),
+            Stack(
+              children: [
+                ChannelLogo(imageUrl: _channelImage, size: 36),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _channelStatus == 'Active' ? AppColors.success : AppColors.danger,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(effectiveName, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
@@ -384,16 +445,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => CreateTaskScreen(channelId: widget.channelId, channelName: effectiveName),
                 ));
+              } else if (value == 'reports') {
+                _handleReports();
               } else if (value == 'share') {
                 _handleShare();
               } else if (value == 'edit') {
-                _handleEditChannel(effectiveName);
+                _handleEditChannel();
               }
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'members', child: Text('View members')),
               const PopupMenuItem(value: 'tasks', child: Text('View tasks')),
               const PopupMenuItem(value: 'create_task', child: Text('Create task')),
+              PopupMenuItem(
+                value: 'reports',
+                child: Row(children: [
+                  Icon(Icons.upload_file_outlined, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  const Text('Task Reports'),
+                ]),
+              ),
               const PopupMenuItem(value: 'share', child: Text('Share')),
               if (_isAdmin) const PopupMenuItem(value: 'edit', child: Text('Edit channel')),
             ],
@@ -435,10 +506,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 isSelf: isSelf,
                                 senderLabel: isSelf ? '' : (_memberNames[msg.senderId] ?? 'Unknown'),
                                 senderAvatar: isSelf ? null : _memberAvatars[msg.senderId],
+                                currentUserId: _myId,
                                 onReply: () => setState(() => _replyingTo = msg),
                                 onEdit: () => _handleEdit(msg),
                                 onDelete: () => _handleDelete(msg),
                                 onTogglePin: () => _handleTogglePin(msg),
+                                onReact: (emoji) => _handleToggleReaction(msg, emoji),
                                 ),
                               );
                             },
@@ -449,6 +522,207 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             onCancelReply: () => setState(() => _replyingTo = null),
             onSend: _handleSend,
             sending: _sending,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Channel Reports Sheet ───────────────────────────────────────────────────
+class _ChannelReportsSheet extends StatefulWidget {
+  final String channelId;
+  final String channelName;
+  final bool isAdmin;
+
+  const _ChannelReportsSheet({
+    required this.channelId,
+    required this.channelName,
+    required this.isAdmin,
+  });
+
+  @override
+  State<_ChannelReportsSheet> createState() => _ChannelReportsSheetState();
+}
+
+class _ChannelReportsSheetState extends State<_ChannelReportsSheet> {
+  List<ChannelReport> _reports = [];
+  bool _loading = true;
+  bool _uploading = false;
+  String? _error;
+
+  File? _pickedFile;
+  int _month = DateTime.now().month;
+  int _year = DateTime.now().year;
+  final _titleController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final reports = await ChannelService.instance.listReports(widget.channelId);
+      if (mounted) setState(() { _reports = reports; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e is ApiException ? e.message : 'Could not load reports.'; _loading = false; });
+    }
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+    if (result?.files.first.path != null) {
+      setState(() => _pickedFile = File(result!.files.first.path!));
+    }
+  }
+
+  Future<void> _upload() async {
+    if (_pickedFile == null) return;
+    setState(() { _uploading = true; _error = null; });
+    try {
+      await ChannelService.instance.uploadReport(
+        channelId: widget.channelId,
+        file: _pickedFile!,
+        year: _year,
+        month: _month,
+        title: _titleController.text.trim(),
+      );
+      _pickedFile = null;
+      _titleController.clear();
+      await _load();
+    } catch (e) {
+      setState(() { _error = e is ApiException ? e.message : 'Upload failed.'; _uploading = false; });
+    }
+  }
+
+  static const List<String> _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (_, scrollController) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(child: Text('Task Reports — ${widget.channelName}', style: AppText.h3, overflow: TextOverflow.ellipsis)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              ],
+            ),
+          ),
+
+          if (widget.isAdmin) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _month,
+                          decoration: const InputDecoration(labelText: 'Month', isDense: true),
+                          items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text(_months[i]))),
+                          onChanged: (v) => setState(() => _month = v ?? _month),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _year,
+                          decoration: const InputDecoration(labelText: 'Year', isDense: true),
+                          items: List.generate(5, (i) => DateTime.now().year - i)
+                              .map((y) => DropdownMenuItem(value: y, child: Text(y.toString())))
+                              .toList(),
+                          onChanged: (v) => setState(() => _year = v ?? _year),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(labelText: 'Title (optional)', isDense: true),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickFile,
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: Text(_pickedFile != null ? _pickedFile!.path.split('/').last : 'Pick PDF', overflow: TextOverflow.ellipsis),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: (_pickedFile == null || _uploading) ? null : _upload,
+                        child: _uploading
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Upload'),
+                      ),
+                    ],
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(_error!, style: TextStyle(color: AppColors.danger, fontSize: 12)),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 20),
+          ],
+
+          Expanded(
+            child: _loading
+                ? Center(child: CircularProgressIndicator(color: AppColors.loader))
+                : _reports.isEmpty
+                    ? Center(child: Text('No reports uploaded yet.', style: AppText.bodyMuted))
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        itemCount: _reports.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, i) {
+                          final r = _reports[i];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(color: AppColors.dangerBg, borderRadius: BorderRadius.circular(10)),
+                              child: Icon(Icons.picture_as_pdf, color: AppColors.danger, size: 20),
+                            ),
+                            title: Text(r.title.isNotEmpty ? r.title : r.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text('${r.monthLabel} ${r.year}', style: AppText.caption),
+                            trailing: widget.isAdmin
+                                ? IconButton(
+                                    icon: Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+                                    onPressed: () async {
+                                      await ChannelService.instance.deleteReport(widget.channelId, r.id);
+                                      _load();
+                                    },
+                                  )
+                                : null,
+                          );
+                        },
+                      ),
           ),
         ],
       ),

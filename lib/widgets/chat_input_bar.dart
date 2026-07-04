@@ -118,8 +118,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       top: false,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.divider)),
+          color: AppColors.primarySoft,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -127,41 +126,66 @@ class _ChatInputBarState extends State<ChatInputBar> {
             if (widget.replyingTo != null) _buildReplyPreview(),
             if (_pendingAttachment != null) _buildAttachmentPreview(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.add_circle_outline, color: AppColors.textSecondary),
-                    onPressed: widget.sending ? null : _showAttachMenu,
-                  ),
                   Expanded(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 120),
-                      child: TextField(
-                        controller: _controller,
-                        minLines: 1,
-                        maxLines: 5,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: InputDecoration(
-                          hintText: 'Type a message...',
-                          filled: true,
-                          fillColor: AppColors.neutralBg,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
-                        ),
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 130),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 1)),
+                        ],
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.add_circle_outline, color: AppColors.primary),
+                            onPressed: widget.sending ? null : _showAttachMenu,
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              minLines: 1,
+                              maxLines: 5,
+                              textCapitalization: TextCapitalization.sentences,
+                              decoration: const InputDecoration(
+                                hintText: 'Type a message...',
+                                filled: false,
+                                isCollapsed: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 14),
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  widget.sending
-                      ? const Padding(
-                          padding: EdgeInsets.all(10),
-                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader)),
-                        )
-                      : IconButton(
-                          icon: Icon(Icons.send_rounded, color: AppColors.primary),
-                          onPressed: _handleSend,
-                        ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: widget.sending
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.send_rounded, color: Colors.white),
+                            onPressed: _handleSend,
+                          ),
+                  ),
                 ],
               ),
             ),

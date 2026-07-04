@@ -3,6 +3,7 @@ import '../core/network/api_client.dart';
 import '../core/network/socket_service.dart';
 import '../core/storage/secure_storage.dart';
 import '../models/user_model.dart';
+import 'push_notification_service.dart';
 
 class AuthService {
   AuthService._();
@@ -26,6 +27,7 @@ class AuthService {
 
     await SecureStorage.instance.saveSession(token: token, userType: userType, user: userJson);
     await SocketService.instance.connect();
+    await PushNotificationService.instance.initialize();
 
     return AppUser.fromJson(userJson, userType);
   }
@@ -39,6 +41,7 @@ class AuthService {
       return null;
     }
     await SocketService.instance.connect();
+    await PushNotificationService.instance.initialize();
     return AppUser.fromJson(userJson, userType);
   }
 

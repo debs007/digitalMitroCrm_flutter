@@ -62,6 +62,18 @@ class MessageService {
     return res['isPinned'] == true;
   }
 
+  /// Toggles your own reaction on a message: a new emoji replaces your
+  /// previous one, the same emoji again clears it. Returns the message's
+  /// full updated reaction list.
+  Future<List<MessageReaction>> toggleReaction({required String messageId, required String emoji}) async {
+    final res = await _api.patch(ApiConstants.reactDmMessage(messageId), data: {'emoji': emoji});
+    final list = res['reactions'];
+    if (list is List) {
+      return list.map((r) => MessageReaction.fromJson(Map<String, dynamic>.from(r))).toList();
+    }
+    return [];
+  }
+
   Future<List<ChatMessage>> getPinned(String otherUserId) async {
     final res = await _api.get(ApiConstants.pinnedDmMessages, queryParameters: {'with': otherUserId});
     final list = res['pinned'];

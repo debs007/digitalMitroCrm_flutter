@@ -15,16 +15,18 @@ class AppColors {
   static bool isDark = false;
 
   // Brand
-  static Color get primary => isDark ? const Color(0xFF9061F0) : const Color(0xFF6D28D9);
+  static Color get primary => isDark ? const Color(0xFFFB923C) : const Color(0xFFEA580C);
 
   /// Dedicated colour for every loading spinner/pull-to-refresh indicator
   /// in the app — kept separate from [primary] so it can be themed
-  /// independently of the purple brand colour.
+  /// independently of the brand colour (even though both are orange now,
+  /// keeping them as distinct tokens means they can diverge again later
+  /// without touching every call site).
   static const Color loader = Color(0xFFF97316); // orange-500 — same in both modes
-  static Color get primaryDark => isDark ? const Color(0xFF7C3AED) : const Color(0xFF5B21B6);
-  static Color get primaryLight => isDark ? const Color(0xFFC084FC) : const Color(0xFF9333EA);
-  static Color get primaryTint => isDark ? const Color(0xFF2E1F5E) : const Color(0xFFEDE9FE);
-  static Color get primarySoft => isDark ? const Color(0xFF1F1B33) : const Color(0xFFF5F3FF);
+  static Color get primaryDark => isDark ? const Color(0xFFEA580C) : const Color(0xFF9A3412);
+  static Color get primaryLight => isDark ? const Color(0xFFFDBA74) : const Color(0xFFFB923C);
+  static Color get primaryTint => isDark ? const Color(0xFF441C08) : const Color(0xFFFFEDD5);
+  static Color get primarySoft => isDark ? const Color(0xFF2E1505) : const Color(0xFFFFF7ED);
 
   static LinearGradient get primaryGradient => LinearGradient(
         begin: Alignment.topLeft,
@@ -55,8 +57,6 @@ class AppColors {
 
   // Online / presence
   static const Color online = Color(0xFF22C55E);
-
-  //static Color loaderTint;
   static Color get offline => isDark ? const Color(0xFF71717A) : const Color(0xFF9CA3AF);
 
   // Priority colours (Tasks)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -30,18 +31,32 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   String? _error;
   List<ChannelModel> _channels = [];
   List<DmConversation> _conversations = [];
+  void Function(dynamic)? _onNewMessage;
+  void Function(dynamic)? _onNewChannelMessage;
+  void Function(dynamic)? _onUpdateUnread;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _load();
+    final socket = SocketService.instance;
+    _onNewMessage = (_) => _load();
+    socket.on('new-message', _onNewMessage!);
+    _onNewChannelMessage = (_) => _load();
+    socket.on('new-channel-message', _onNewChannelMessage!);
+    _onUpdateUnread = (_) => _load();
+    socket.on('updateUnread', _onUpdateUnread!);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    final socket = SocketService.instance;
+    if (_onNewMessage != null) socket.off('new-message', _onNewMessage);
+    if (_onNewChannelMessage != null) socket.off('new-channel-message', _onNewChannelMessage);
+    if (_onUpdateUnread != null) socket.off('updateUnread', _onUpdateUnread);
     super.dispose();
   }
 
@@ -246,7 +261,24 @@ class _ChatListScreenState extends State<ChatListScreen> with SingleTickerProvid
   /// falls back to the "#" placeholder — see ChannelLogo for the shared
   /// circular/contain-fit treatment used everywhere a channel logo appears.
   Widget _channelLeading(ChannelModel channel) {
-    return ChannelLogo(imageUrl: channel.image, size: 44);
+    return Stack(
+      children: [
+        ChannelLogo(imageUrl: channel.image, size: 44),
+        Positioned(
+          right: 1,
+          bottom: 1,
+          child: Container(
+            width: 11,
+            height: 11,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: channel.isActive ? AppColors.success : AppColors.danger,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildChannelsTab() {

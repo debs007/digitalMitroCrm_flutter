@@ -23,7 +23,10 @@ class ProfileService {
         if (password != null && password.isNotEmpty) 'password': password,
       });
     } else {
-      await _api.put(ApiConstants.updateEmployeeProfile(user.id), data: {
+      // Employees use /profile/me (PATCH) — the alternative PUT /auth/:id
+      // requires the employee.edit admin permission, so employees calling
+      // it to update their own name were silently getting 403s.
+      await _api.patch(ApiConstants.profileUpdateSelf, data: {
         if (name != null) 'name': name,
         if (phone != null) 'phone': phone,
       });

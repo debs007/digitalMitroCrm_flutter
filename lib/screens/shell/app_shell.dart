@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/nav_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/chat_list_service.dart';
 import '../../widgets/app_drawer.dart';
 import '../home/home_screen.dart';
@@ -28,6 +29,8 @@ class _AppShellState extends State<AppShell> {
   void Function(dynamic)? _onNewMessage;
   void Function(dynamic)? _onNewChannelMessage;
   void Function(dynamic)? _onUpdateUnread;
+  void Function(dynamic)? _onSoftRefresh;
+  bool _isAdmin = false;
 
   static const _screens = [
     HomeScreen(),
@@ -40,7 +43,9 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _nav = NavProvider(scaffoldKey: _scaffoldKey);
+    _isAdmin = context.read<AuthProvider>().user?.isAdmin ?? false;
     _refreshChatBadge();
+    _nav.refreshBadgeCounts(isAdmin: _isAdmin);
     _registerSocketListeners();
   }
 
@@ -50,6 +55,7 @@ class _AppShellState extends State<AppShell> {
     if (_onNewMessage != null) socket.off('new-message', _onNewMessage);
     if (_onNewChannelMessage != null) socket.off('new-channel-message', _onNewChannelMessage);
     if (_onUpdateUnread != null) socket.off('updateUnread', _onUpdateUnread);
+    if (_onSoftRefresh != null) socket.off('soft-refresh', _onSoftRefresh);
     _nav.dispose();
     super.dispose();
   }
@@ -65,6 +71,26 @@ class _AppShellState extends State<AppShell> {
 
     _onUpdateUnread = (_) => _refreshChatBadge();
     socket.on('updateUnread', _onUpdateUnread!);
+
+    // Generic "something changed, go refetch" signal the backend already
+    // broadcasts on every task/callback/sale/transfer/concern/attendance
+    // create-update-delete — exactly what the sidebar badge counts need.
+    _onSoftRefresh = (data) {
+      if (data is! Map) return;
+      final type = data['type']?.toString();
+      const relevantTypes = {
+        'TASK',
+        'Callback',
+        'Sale_Employee',
+        'Transfer_Employee',
+        'Concern',
+        'Concern_Employee',
+      };
+      if (relevantTypes.contains(type)) {
+        _nav.refreshBadgeCounts(isAdmin: _isAdmin);
+      }
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
   }
 
   Future<void> _refreshChatBadge() async {
@@ -136,12 +162,6 @@ class _AppShellState extends State<AppShell> {
                   height: 64,
                   child: Row(
                     children: [
-                      IconButton(
-                        icon: Icon(Icons.menu_rounded, size: 26, color: AppColors.textSecondary),
-                        onPressed: nav.openDrawer,
-                        tooltip: 'Menu',
-                      ),
-                      Container(width: 1, height: 32, color: AppColors.divider),
                       Expanded(
                         child: BottomNavigationBar(
                           currentIndex: nav.currentIndex,
@@ -150,6 +170,12 @@ class _AppShellState extends State<AppShell> {
                           backgroundColor: Colors.transparent,
                           elevation: 0,
                         ),
+                      ),
+                      Container(width: 1, height: 32, color: AppColors.divider),
+                      IconButton(
+                        icon: Icon(Icons.menu_rounded, size: 26, color: AppColors.textSecondary),
+                        onPressed: nav.openDrawer,
+                        tooltip: 'Menu',
                       ),
                     ],
                   ),

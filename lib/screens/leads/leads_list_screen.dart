@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -27,11 +28,36 @@ class _LeadsListScreenState extends State<LeadsListScreen> {
   int _page = 1;
   int _totalPages = 1;
   String? _expandedId;
+  void Function(dynamic)? _onSoftRefresh;
+
+  /// The backend's soft-refresh `type` tag differs per lead type — see
+  /// the triggerSoftRefresh() calls in callback/sale/transferController.
+  String get _softRefreshType {
+    switch (widget.type) {
+      case LeadType.callback:
+        return 'Callback';
+      case LeadType.sale:
+        return 'Sale_Employee';
+      case LeadType.transfer:
+        return 'Transfer_Employee';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _load();
+    final socket = SocketService.instance;
+    _onSoftRefresh = (data) {
+      if (data is Map && data['type']?.toString() == _softRefreshType) _load(page: _page);
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
+  }
+
+  @override
+  void dispose() {
+    if (_onSoftRefresh != null) SocketService.instance.off('soft-refresh', _onSoftRefresh);
+    super.dispose();
   }
 
   Future<void> _load({int page = 1}) async {

@@ -31,7 +31,7 @@ class AppAvatar extends StatelessWidget {
     // Deterministic colour from the name so the same person always gets
     // the same avatar colour.
     const palette = [
-      Color(0xFF6D28D9),
+      Color(0xFF475569),
       Color(0xFF2563EB),
       Color(0xFF059669),
       Color(0xFFD97706),

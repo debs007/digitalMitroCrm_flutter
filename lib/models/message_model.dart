@@ -64,6 +64,25 @@ class TaskSnapshot {
 /// One chat message — used for both DM (DirectMessage) and Channel
 /// (ChannelMessage) since the two schemas are almost identical.
 /// [channelId] is null for DMs; [receiverId] is null for channel messages.
+/// One person's reaction on a message. Backend enforces one reaction per
+/// user per message — picking a new emoji replaces their old one.
+class MessageReaction {
+  final String emoji;
+  final String userId;
+  final String userName;
+
+  MessageReaction({required this.emoji, required this.userId, required this.userName});
+
+  factory MessageReaction.fromJson(Map<String, dynamic> json) {
+    final rawUserId = json['userId'];
+    return MessageReaction(
+      emoji: json['emoji']?.toString() ?? '',
+      userId: rawUserId is Map ? (rawUserId['_id']?.toString() ?? '') : (rawUserId?.toString() ?? ''),
+      userName: json['userName']?.toString() ?? '',
+    );
+  }
+}
+
 class ChatMessage {
   final String id;
   final String senderId;
@@ -83,6 +102,7 @@ class ChatMessage {
   final bool isDeleted;
   final bool isSystem;
   final TaskSnapshot? taskSnapshot;
+  final List<MessageReaction> reactions;
   final DateTime createdAt;
 
   ChatMessage({
@@ -104,11 +124,32 @@ class ChatMessage {
     required this.isDeleted,
     required this.isSystem,
     this.taskSnapshot,
+    this.reactions = const [],
     required this.createdAt,
   });
 
   bool get isEdited => editedAt != null;
   bool get hasAttachments => attachments.isNotEmpty;
+  bool get hasReactions => reactions.isNotEmpty;
+
+  /// Groups [reactions] by emoji, preserving first-seen order — what the
+  /// UI actually renders (one pill per distinct emoji, with a count).
+  Map<String, List<MessageReaction>> get reactionsByEmoji {
+    final map = <String, List<MessageReaction>>{};
+    for (final r in reactions) {
+      (map[r.emoji] ??= []).add(r);
+    }
+    return map;
+  }
+
+  /// The emoji the given user reacted with, if any — null if they haven't
+  /// reacted (only one reaction per user is possible, enforced server-side).
+  String? myReaction(String userId) {
+    for (final r in reactions) {
+      if (r.userId == userId) return r.emoji;
+    }
+    return null;
+  }
 
   /// Mirrors the web app's 2-hour edit/delete window.
   bool get isWithinEditWindow => DateTime.now().difference(createdAt).inHours < 2;
@@ -154,18 +195,24 @@ class ChatMessage {
       taskSnapshot: (json['taskSnapshot'] is Map && (json['taskSnapshot'] as Map)['taskId'] != null)
           ? TaskSnapshot.fromJson(Map<String, dynamic>.from(json['taskSnapshot']))
           : null,
+      reactions: (json['reactions'] is List)
+          ? (json['reactions'] as List)
+              .map((r) => MessageReaction.fromJson(Map<String, dynamic>.from(r)))
+              .toList()
+          : [],
       createdAt: parseDate(json['createdAt']) ?? DateTime.now(),
     );
   }
 
   /// Used for optimistic local updates right after a successful edit/
-  /// delete/pin API call — don't wait on the socket echo to update your
-  /// own screen, only rely on sockets for changes from other devices/users.
+  /// delete/pin/react API call — don't wait on the socket echo to update
+  /// your own screen, only rely on sockets for changes from other devices/users.
   ChatMessage copyWith({
     String? message,
     bool? isPinned,
     DateTime? editedAt,
     bool? isDeleted,
+    List<MessageReaction>? reactions,
   }) {
     return ChatMessage(
       id: id,
@@ -186,6 +233,7 @@ class ChatMessage {
       isDeleted: isDeleted ?? this.isDeleted,
       isSystem: isSystem,
       taskSnapshot: taskSnapshot,
+      reactions: reactions ?? this.reactions,
       createdAt: createdAt,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -25,12 +26,26 @@ class _ConcernScreenState extends State<ConcernScreen> {
   bool _isAdmin = false;
   String? _busyId;
   String? _expandedId;
+  void Function(dynamic)? _onSoftRefresh;
 
   @override
   void initState() {
     super.initState();
     _isAdmin = context.read<AuthProvider>().user?.isAdmin ?? false;
     _load();
+    final socket = SocketService.instance;
+    _onSoftRefresh = (data) {
+      if (data is! Map) return;
+      final type = data['type']?.toString();
+      if (type == 'Concern' || type == 'Concern_Employee') _load();
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
+  }
+
+  @override
+  void dispose() {
+    if (_onSoftRefresh != null) SocketService.instance.off('soft-refresh', _onSoftRefresh);
+    super.dispose();
   }
 
   Future<void> _load() async {

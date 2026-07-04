@@ -1,12 +1,15 @@
 import 'dart:io';
+import 'package:digital_mitro/core/constants/api_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/socket_service.dart';
 import '../../models/message_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/message_service.dart';
+import '../../services/profile_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/chat_input_bar.dart';
@@ -47,9 +50,11 @@ class _DmChatScreenState extends State<DmChatScreen> {
   String? _highlightedMessageId;
 
   late String _myId;
+  String? _resolvedPartnerAvatar;
   void Function(dynamic)? _onNewMessage;
   void Function(dynamic)? _onMessageUpdated;
   void Function(dynamic)? _onPinned;
+  void Function(dynamic)? _onReacted;
 
   @override
   void initState() {
@@ -59,6 +64,10 @@ class _DmChatScreenState extends State<DmChatScreen> {
     _load();
     _registerSocketListeners();
     MessageService.instance.markAsRead(widget.partnerId);
+    // When navigated from a push notification tap, partnerAvatar arrives as
+    // an empty string (push payload has no room for it). Resolve it lazily so
+    // the AppBar and message bubbles show a real avatar instead of "?".
+    if (widget.partnerAvatar.isEmpty) _resolvePartnerAvatar();
   }
 
   @override
@@ -68,6 +77,7 @@ class _DmChatScreenState extends State<DmChatScreen> {
     if (_onNewMessage != null) socket.off('new-message', _onNewMessage);
     if (_onMessageUpdated != null) socket.off('direct-message-updated', _onMessageUpdated);
     if (_onPinned != null) socket.off('dm-message-pinned', _onPinned);
+    if (_onReacted != null) socket.off('direct-message-reacted', _onReacted);
     super.dispose();
   }
 
@@ -110,12 +120,40 @@ class _DmChatScreenState extends State<DmChatScreen> {
       }
     };
     socket.on('dm-message-pinned', _onPinned!);
+
+    _onReacted = (data) {
+      if (!mounted || data is! Map) return;
+      final id = data['messageId']?.toString();
+      final rawReactions = data['reactions'];
+      if (rawReactions is! List) return;
+      final reactions = rawReactions
+          .map((r) => MessageReaction.fromJson(Map<String, dynamic>.from(r)))
+          .toList();
+      setState(() {
+        final idx = _messages.indexWhere((m) => m.id == id);
+        if (idx != -1) _messages[idx] = _messages[idx].copyWith(reactions: reactions);
+      });
+    };
+    socket.on('direct-message-reacted', _onReacted!);
   }
 
   void _onScroll() {
     if (!_hasMore || _isLoadingMore) return;
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
       _loadMore();
+    }
+  }
+
+  Future<void> _resolvePartnerAvatar() async {
+    try {
+      final api = ApiClient.instance;
+      final res = await api.get(ApiConstants.getUserById(widget.partnerId));
+      final avatar = res['avatar']?.toString() ?? '';
+      if (mounted && avatar.isNotEmpty) {
+        setState(() => _resolvedPartnerAvatar = avatar);
+      }
+    } catch (_) {
+      // Non-fatal — falls back to initials avatar which is fine.
     }
   }
 
@@ -298,6 +336,19 @@ class _DmChatScreenState extends State<DmChatScreen> {
     }
   }
 
+  Future<void> _handleToggleReaction(ChatMessage message, String emoji) async {
+    try {
+      final reactions = await MessageService.instance.toggleReaction(messageId: message.id, emoji: emoji);
+      _patchMessage(message.id, (m) => m.copyWith(reactions: reactions));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiException ? e.message : 'Could not react.')),
+        );
+      }
+    }
+  }
+
   /// Replaces a message in [_messages] by id with the result of [update] —
   /// the shared helper behind every optimistic local edit/delete/pin above.
   void _patchMessage(String id, ChatMessage Function(ChatMessage) update) {
@@ -311,11 +362,12 @@ class _DmChatScreenState extends State<DmChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.primarySoft,
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
           children: [
-            AppAvatar(name: widget.partnerName, imageUrl: widget.partnerAvatar, size: 36),
+            AppAvatar(name: widget.partnerName, imageUrl: _resolvedPartnerAvatar ?? widget.partnerAvatar, size: 36),
             const SizedBox(width: 10),
             Expanded(
               child: Text(widget.partnerName, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis),
@@ -357,11 +409,13 @@ class _DmChatScreenState extends State<DmChatScreen> {
                                 message: msg,
                                 isSelf: isSelf,
                                 senderLabel: '',
-                                senderAvatar: isSelf ? null : widget.partnerAvatar,
+                                senderAvatar: isSelf ? null : (_resolvedPartnerAvatar ?? widget.partnerAvatar),
+                                currentUserId: _myId,
                                 onReply: () => setState(() => _replyingTo = msg),
                                 onEdit: () => _handleEdit(msg),
                                 onDelete: () => _handleDelete(msg),
                                 onTogglePin: () => _handleTogglePin(msg),
+                                onReact: (emoji) => _handleToggleReaction(msg, emoji),
                                 ),
                               );
                             },

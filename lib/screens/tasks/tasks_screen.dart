@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -29,16 +30,24 @@ class _TasksScreenState extends State<TasksScreen> {
   _TaskFilter _filter = _TaskFilter.all;
   final _searchController = TextEditingController();
   String _busyTaskId = '';
+  String? _expandedTaskId;
+  void Function(dynamic)? _onSoftRefresh;
 
   @override
   void initState() {
     super.initState();
     _load();
+    final socket = SocketService.instance;
+    _onSoftRefresh = (data) {
+      if (data is Map && data['type']?.toString() == 'TASK') _load();
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    if (_onSoftRefresh != null) SocketService.instance.off('soft-refresh', _onSoftRefresh);
     super.dispose();
   }
 
@@ -159,35 +168,68 @@ class _TasksScreenState extends State<TasksScreen> {
 
     final selected = await showModalBottomSheet<ChannelModel>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Create task in which channel?', style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-            Flexible(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.55),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: channels.length,
-                  itemBuilder: (context, index) {
-                    final c = channels[index];
-                    return ListTile(
-                      leading: ChannelLogo(imageUrl: c.image, size: 40),
-                      title: Text(c.name),
-                      onTap: () => Navigator.pop(ctx, c),
-                    );
-                  },
-                ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          var filtered = channels;
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text('Create task in which channel?', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      autofocus: false,
+                      decoration: const InputDecoration(
+                        hintText: 'Search channels...',
+                        prefixIcon: Icon(Icons.search, size: 20),
+                        isDense: true,
+                      ),
+                      onChanged: (query) {
+                        setSheetState(() {
+                          filtered = query.trim().isEmpty
+                              ? channels
+                              : channels.where((c) => c.name.toLowerCase().contains(query.trim().toLowerCase())).toList();
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                      child: filtered.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Text('No channels found.', style: TextStyle(color: AppColors.textFaint)),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final c = filtered[index];
+                                return ListTile(
+                                  leading: ChannelLogo(imageUrl: c.image, size: 40),
+                                  title: Text(c.name),
+                                  onTap: () => Navigator.pop(ctx, c),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-          ],
-        ),
+          );
+        },
       ),
     );
 
@@ -294,79 +336,135 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Widget _buildTaskTile(TaskModel task) {
     final isBusy = _busyTaskId == task.id;
+    final isExpanded = _expandedTaskId == task.id;
+    final channelName = _channelNameFor(task.channelId);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider),
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => setState(() => _expandedTaskId = isExpanded ? null : task.id),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: isExpanded ? AppColors.primary : AppColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (channelName.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryTint,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.tag, size: 12, color: AppColors.primary),
+                              const SizedBox(width: 2),
+                              Text(
+                                channelName,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Text(
+                        task.title,
+                        style: AppText.bodyLarge.copyWith(
+                          decoration: task.isDone ? TextDecoration.lineThrough : null,
+                          color: task.isDone ? AppColors.textFaint : AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          StatusChip(
+                            label: task.isDone ? 'Completed' : _dueLabel(task.deadline),
+                            color: _dueColor(task.deadline, task.isDone),
+                            background: _dueColor(task.deadline, task.isDone).withValues(alpha: 0.12),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.arrow_upward, size: 11, color: AppColors.priorityColor(task.priority)),
+                              const SizedBox(width: 2),
+                              Text(
+                                task.priority,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.priorityColor(task.priority),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (task.assignedToUser != null) ...[
+                  const SizedBox(width: 8),
+                  AppAvatar(name: task.assignedToUser!.name, imageUrl: task.assignedToUser!.avatar, size: 30),
+                ],
+                Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.textFaint),
+              ],
+            ),
+            if (isExpanded) ...[
+              const Divider(height: 18),
+              if (task.taskNumber.isNotEmpty) _detailRow('Task #', task.taskNumber),
+              _detailRow('Deadline', DateFormat('d MMM yyyy, hh:mm a').format(task.deadline)),
+              if (task.createdByUser != null) _detailRow('Created by', task.createdByUser!.name),
+              if (task.assignedToUser != null) _detailRow('Assigned to', task.assignedToUser!.name),
+              if (task.completedAt != null) _detailRow('Completed', DateFormat('d MMM yyyy, hh:mm a').format(task.completedAt!)),
+              if (task.tags.isNotEmpty) _detailRow('Tags', task.tags.join(', ')),
+              const SizedBox(height: 4),
+              Text('Description', style: AppText.label),
+              const SizedBox(height: 4),
+              Text(task.description.isNotEmpty ? task.description : 'No description.', style: AppText.body),
+              if (!task.isDone) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isBusy ? null : () => _toggleComplete(task),
+                    icon: isBusy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader))
+                        : const Icon(Icons.check_circle_outline, size: 18),
+                    label: Text(isBusy ? 'Updating...' : 'Mark as complete'),
+                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.success, side: BorderSide(color: AppColors.success)),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          isBusy
-              ? const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.loader),
-                  ),
-                )
-              : Checkbox(
-                  value: task.isDone,
-                  onChanged: (_) => _toggleComplete(task),
-                ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.title,
-                  style: AppText.bodyLarge.copyWith(
-                    decoration: task.isDone ? TextDecoration.lineThrough : null,
-                    color: task.isDone ? AppColors.textFaint : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    StatusChip(
-                      label: task.isDone ? 'Completed' : _dueLabel(task.deadline),
-                      color: _dueColor(task.deadline, task.isDone),
-                      background: _dueColor(task.deadline, task.isDone).withValues(alpha: 0.12),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.arrow_upward, size: 11, color: AppColors.priorityColor(task.priority)),
-                        const SizedBox(width: 2),
-                        Text(
-                          task.priority,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.priorityColor(task.priority),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_channelNameFor(task.channelId).isNotEmpty)
-                      Text('#${_channelNameFor(task.channelId)}', style: AppText.caption),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (task.assignedToUser != null) ...[
-            const SizedBox(width: 8),
-            AppAvatar(name: task.assignedToUser!.name, imageUrl: task.assignedToUser!.avatar, size: 30),
-          ],
+          SizedBox(width: 90, child: Text(label, style: AppText.caption)),
+          Expanded(child: Text(value, style: AppText.body)),
         ],
       ),
     );

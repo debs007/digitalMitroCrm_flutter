@@ -63,6 +63,17 @@ class ChannelService {
     return res['isPinned'] == true;
   }
 
+  /// Toggles your own reaction on a channel message — same rule as DMs:
+  /// a new emoji replaces your previous one, the same emoji again clears it.
+  Future<List<MessageReaction>> toggleReaction({required String messageId, required String emoji}) async {
+    final res = await _api.patch(ApiConstants.reactChannelMessage(messageId), data: {'emoji': emoji});
+    final list = res['reactions'];
+    if (list is List) {
+      return list.map((r) => MessageReaction.fromJson(Map<String, dynamic>.from(r))).toList();
+    }
+    return [];
+  }
+
   Future<List<ChatMessage>> getPinned(String channelId) async {
     final res = await _api.get(ApiConstants.pinnedChannelMessages(channelId));
     final list = res['pinned'];
@@ -99,16 +110,25 @@ class ChannelService {
     return (channel['_id'] ?? '').toString();
   }
 
-  /// Updates a channel's name/description. Backend note: owner-only,
+  /// Updates a channel's editable fields. Backend note: owner-only,
   /// regardless of Admin/SuperAdmin status — see [removeMember]'s comment.
+  /// Pass only the fields you want to change; omitted ones are left as-is
+  /// server-side. statusTag must be one of Active/Archived/Paused/Closed.
+  /// tags is capped at 2 entries server-side.
   Future<void> updateChannelInfo({
     required String channelId,
     String? name,
     String? description,
+    String? statusTag,
+    List<String>? tags,
+    ChannelExtraDetails? channelDetails,
   }) async {
     await _api.put(ApiConstants.channelUpdate(channelId), data: {
       if (name != null) 'name': name,
       if (description != null) 'description': description,
+      if (statusTag != null) 'statusTag': statusTag,
+      if (tags != null) 'tags': tags,
+      if (channelDetails != null) 'channelDetails': channelDetails.toJson(),
     });
   }
 
@@ -161,4 +181,80 @@ class ChannelService {
     }
     return [];
   }
+
+  /// Lists all monthly reports for a channel — newest first.
+  Future<List<ChannelReport>> listReports(String channelId) async {
+    final res = await _api.get(ApiConstants.channelReports(channelId));
+    final list = res['reports'];
+    if (list is List) {
+      return list.map((r) => ChannelReport.fromJson(Map<String, dynamic>.from(r))).toList();
+    }
+    return [];
+  }
+
+  /// Uploads a report PDF for a specific month/year. Admin only.
+  Future<ChannelReport> uploadReport({
+    required String channelId,
+    required File file,
+    required int year,
+    required int month,
+    String title = '',
+    String note = '',
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+      'year': year.toString(),
+      'month': month.toString(),
+      if (title.isNotEmpty) 'title': title,
+      if (note.isNotEmpty) 'note': note,
+    });
+    final res = await _api.dio.post(ApiConstants.channelReports(channelId), data: formData);
+    if (res.data is Map && res.data['report'] is Map) {
+      return ChannelReport.fromJson(Map<String, dynamic>.from(res.data['report']));
+    }
+    throw Exception('Unexpected response from report upload.');
+  }
+
+  Future<void> deleteReport(String channelId, String reportId) async {
+    await _api.delete(ApiConstants.channelReportDelete(channelId, reportId));
+  }
+}
+
+/// A single monthly task report attached to a channel.
+class ChannelReport {
+  final String id;
+  final String channelId;
+  final int year;
+  final int month;
+  final String fileUrl;
+  final String fileName;
+  final String title;
+  final String note;
+
+  ChannelReport({
+    required this.id,
+    required this.channelId,
+    required this.year,
+    required this.month,
+    required this.fileUrl,
+    required this.fileName,
+    required this.title,
+    required this.note,
+  });
+
+  factory ChannelReport.fromJson(Map<String, dynamic> json) => ChannelReport(
+        id: (json['_id'] ?? '').toString(),
+        channelId: (json['channelId'] ?? '').toString(),
+        year: (json['year'] is num) ? (json['year'] as num).toInt() : 0,
+        month: (json['month'] is num) ? (json['month'] as num).toInt() : 0,
+        fileUrl: json['fileUrl']?.toString() ?? '',
+        fileName: json['fileName']?.toString() ?? 'report.pdf',
+        title: json['title']?.toString() ?? '',
+        note: json['note']?.toString() ?? '',
+      );
+
+  String get monthLabel => [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ][(month - 1).clamp(0, 11)];
 }

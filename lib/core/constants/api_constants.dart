@@ -34,6 +34,8 @@ class ApiConstants {
   static const String allTasks = '/channels/tasks/all';
   static const String pendingTasksCount = '/channels/tasks/count';
   static String channelTasks(String channelId) => '/channels/$channelId/tasks';
+  static String channelReports(String channelId) => '/channels/$channelId/reports';
+  static String channelReportDelete(String channelId, String reportId) => '/channels/$channelId/reports/$reportId';
   static String updateTask(String channelId, String taskId) =>
       '/channels/$channelId/tasks/$taskId';
 
@@ -50,6 +52,7 @@ class ApiConstants {
   static String editChannelMessage(String messageId) => '/channels/messages/$messageId';
   static String deleteChannelMessage(String messageId) => '/channels/messages/$messageId';
   static String pinChannelMessage(String messageId) => '/channels/messages/$messageId/pin';
+  static String reactChannelMessage(String messageId) => '/channels/messages/$messageId/react';
   static String pinnedChannelMessages(String channelId) => '/channels/$channelId/pinned';
   static String mentionCandidates(String channelId) => '/channels/$channelId/mentions';
 
@@ -62,6 +65,7 @@ class ApiConstants {
   static String editDmMessage(String messageId) => '/message/messages/$messageId';
   static String deleteDmMessage(String messageId) => '/message/messages/$messageId';
   static String pinDmMessage(String messageId) => '/message/messages/$messageId/pin';
+  static String reactDmMessage(String messageId) => '/message/messages/$messageId/react';
   static const String pinnedDmMessages = '/message/pinned';
 
   // ── File upload (chat attachments) ────────────────────────────────────────
@@ -88,6 +92,7 @@ class ApiConstants {
   static const String submitConcern = '/concern/submit';
   static const String myConcerns = '/concern/user';
   static const String allConcerns = '/concern/all';
+  static const String pendingConcernsCount = '/concern/pending-count';
   static String approveConcern(String userId, String concernId) =>
       '/concern/approve/$userId/$concernId';
   static String rejectConcern(String userId, String concernId) =>
@@ -97,13 +102,16 @@ class ApiConstants {
   static const String profileMe = '/profile/me';
   static const String profileAvatar = '/profile/avatar';
   static const String profileAvatarsBatch = '/profile/avatars';
+  static String getUserById(String id) => '/auth/$id';
   static const String adminProfile = '/auth/admin/profile';
   static String updateEmployeeProfile(String userId) => '/auth/$userId';
+  static const String profileUpdateSelf = '/profile/me';
 
   // ── Payslip / Salary ───────────────────────────────────────────────────────
   static const String myPayslips = '/payslips/me';
   static String downloadPayslip(String id) => '/payslips/download/$id';
   static const String payslipsBase = '/payslips';
+  static const String payslipsBulk = '/payslips/bulk';
   static String employeePayslips(String employeeId) => '/payslips/employee/$employeeId';
   static String payslipDelete(String id) => '/payslips/$id';
   static const String salarySheet = '/salary-sheet';

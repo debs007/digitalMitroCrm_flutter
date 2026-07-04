@@ -5,6 +5,7 @@ class ChannelModel {
   final String name;
   final String description;
   final String image;
+  final String statusTag; // Active | Archived | Paused | Closed
   final int unreadCount;
   final String? lastMessageText;
   final String? lastMessageSender;
@@ -15,11 +16,14 @@ class ChannelModel {
     required this.name,
     required this.description,
     required this.image,
+    this.statusTag = 'Active',
     required this.unreadCount,
     this.lastMessageText,
     this.lastMessageSender,
     this.lastMessageAt,
   });
+
+  bool get isActive => statusTag == 'Active';
 
   factory ChannelModel.fromJson(Map<String, dynamic> json) {
     final lastMessage = json['lastMessage'];
@@ -41,6 +45,7 @@ class ChannelModel {
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       image: json['image']?.toString() ?? '',
+      statusTag: json['statusTag']?.toString() ?? 'Active',
       unreadCount: (json['unreadCount'] is num) ? (json['unreadCount'] as num).toInt() : 0,
       lastMessageText: lastText,
       lastMessageSender: lastSender,

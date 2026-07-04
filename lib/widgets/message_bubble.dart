@@ -18,15 +18,21 @@ bool _isVideoUrl(String url) =>
 bool _isPdfUrl(String url) =>
     RegExp(r'\.pdf(\?.*)?$', caseSensitive: false).hasMatch(url);
 
+// Small curated set for quick message reactions — matches the web app's
+// QUICK_REACTIONS so the experience is consistent across platforms.
+const List<String> kQuickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isSelf;
   final String senderLabel;
   final String? senderAvatar;
+  final String currentUserId;
   final VoidCallback? onReply;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onTogglePin;
+  final void Function(String emoji)? onReact;
   final VoidCallback? onTapReplyPreview;
 
   const MessageBubble({
@@ -35,10 +41,12 @@ class MessageBubble extends StatelessWidget {
     required this.isSelf,
     required this.senderLabel,
     this.senderAvatar,
+    this.currentUserId = '',
     this.onReply,
     this.onEdit,
     this.onDelete,
     this.onTogglePin,
+    this.onReact,
     this.onTapReplyPreview,
   });
 
@@ -51,6 +59,21 @@ class MessageBubble extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Quick-react row — the whole point of "hold to react": no
+            // extra tap needed, the emojis are right here on long-press.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: kQuickReactions.map((emoji) {
+                  return GestureDetector(
+                    onTap: () { Navigator.pop(ctx); onReact?.call(emoji); },
+                    child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                  );
+                }).toList(),
+              ),
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.reply),
               title: const Text('Reply'),
@@ -109,17 +132,25 @@ class MessageBubble extends StatelessWidget {
           GestureDetector(
         onLongPress: () => _showActions(context),
         child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.68),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.74),
           margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: bubbleColor,
+            gradient: isSelf ? AppColors.primaryGradient : null,
+            color: isSelf ? null : bubbleColor,
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
-              bottomLeft: Radius.circular(isSelf ? 14 : 2),
-              bottomRight: Radius.circular(isSelf ? 2 : 14),
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(isSelf ? 18 : 4),
+              bottomRight: Radius.circular(isSelf ? 4 : 18),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: (isSelf ? AppColors.primary : Colors.black).withValues(alpha: 0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,8 +225,19 @@ class MessageBubble extends StatelessWidget {
                     DateFormat('HH:mm').format(message.createdAt),
                     style: TextStyle(fontSize: 10, color: textColor.withValues(alpha: 0.6)),
                   ),
+                  if (isSelf) ...[
+                    const SizedBox(width: 3),
+                    Icon(
+                      (message.seen || message.seenBy.isNotEmpty) ? Icons.done_all : Icons.done,
+                      size: 13,
+                      color: (message.seen || message.seenBy.isNotEmpty)
+                          ? Colors.lightBlueAccent
+                          : Colors.white.withValues(alpha: 0.75),
+                    ),
+                  ],
                 ],
               ),
+              if (message.hasReactions) _buildReactionRow(),
             ],
           ),
         ),
@@ -222,6 +264,48 @@ class MessageBubble extends StatelessWidget {
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
               ),
             ),
+    );
+  }
+
+  Widget _buildReactionRow() {
+    final grouped = message.reactionsByEmoji;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: grouped.entries.map((entry) {
+          final emoji = entry.key;
+          final reactors = entry.value;
+          final iReacted = reactors.any((r) => r.userId == currentUserId);
+          return GestureDetector(
+            onTap: () => onReact?.call(emoji),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: iReacted ? AppColors.primarySoft : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: iReacted ? AppColors.primary : AppColors.divider),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 12)),
+                  const SizedBox(width: 3),
+                  Text(
+                    reactors.length.toString(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: iReacted ? AppColors.primary : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 

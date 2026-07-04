@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -24,16 +25,23 @@ class _AdminAttendanceViewState extends State<AdminAttendanceView> {
   String? _error;
   List<AttendanceRecord> _records = [];
   final _search = TextEditingController();
+  void Function(dynamic)? _onSoftRefresh;
 
   @override
   void initState() {
     super.initState();
     _load();
+    final socket = SocketService.instance;
+    _onSoftRefresh = (data) {
+      if (data is Map && data['type']?.toString() == 'Attendence') _load();
+    };
+    socket.on('soft-refresh', _onSoftRefresh!);
   }
 
   @override
   void dispose() {
     _search.dispose();
+    if (_onSoftRefresh != null) SocketService.instance.off('soft-refresh', _onSoftRefresh);
     super.dispose();
   }
 

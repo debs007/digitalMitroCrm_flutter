@@ -28,6 +28,16 @@ class ConcernService {
     return [];
   }
 
+  /// Admin/SuperAdmin only — this endpoint isn't scope-filtered server
+  /// side (counts every pending concern company-wide), which is fine
+  /// since regular employees aren't shown this badge at all in the
+  /// drawer; only an admin can actually action a pending concern.
+  Future<int> getPendingCount() async {
+    final res = await _api.get(ApiConstants.pendingConcernsCount);
+    final count = res['count'];
+    return (count is num) ? count.toInt() : 0;
+  }
+
   Future<void> submit({
     required String concernType,
     required String message,

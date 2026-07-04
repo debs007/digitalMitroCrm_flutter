@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "8013696627",
+    "project_id": "digital-mitro-85ffd",
+    "storage_bucket": "digital-mitro-85ffd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:8013696627:android:0a41f910d4e267c849a406",
+        "android_client_info": {
+          "package_name": "com.digitalmitro.digital_mitro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVxV6RfuFZlCqlWTaTF1Q0EYkY24dK1Yc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

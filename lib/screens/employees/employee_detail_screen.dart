@@ -301,6 +301,26 @@ class _EmployeeAttendanceTabState extends State<_EmployeeAttendanceTab> {
                                       children: [
                                         Text(DateFormat('d MMMM').format(r.currentDate), style: AppText.bodyLarge),
                                         Text(DateFormat('EEEE').format(r.currentDate), style: AppText.caption),
+                                        if (r.punchIn != null || r.punchOut != null) ...[
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.login, size: 12, color: AppColors.success),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                r.punchIn != null ? DateFormat('hh:mm a').format(r.punchIn!) : '--:--',
+                                                style: AppText.caption,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Icon(Icons.logout, size: 12, color: AppColors.danger),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                r.punchOut != null ? DateFormat('hh:mm a').format(r.punchOut!) : '--:--',
+                                                style: AppText.caption,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),

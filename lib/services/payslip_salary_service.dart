@@ -109,4 +109,46 @@ class PayslipSalaryService {
       );
     }
   }
+
+  /// Bulk-upload one payslip PDF per employee for the same month/year.
+  /// [files] maps File → employee id. Returns a summary map with keys
+  /// 'uploaded', 'failed', 'errors' from the backend's 207 response.
+  Future<Map<String, dynamic>> bulkUploadPayslips({
+    required int year,
+    required int month,
+    required Map<File, String> files,
+  }) async {
+    final mapping = <String, String>{};
+    final multipartFiles = <MultipartFile>[];
+
+    for (final entry in files.entries) {
+      final f = entry.key;
+      final employeeId = entry.value;
+      final filename = f.path.split('/').last;
+      mapping[filename] = employeeId;
+      multipartFiles.add(
+        await MultipartFile.fromFile(f.path, filename: filename),
+      );
+    }
+
+    final formData = FormData.fromMap({
+      'year': year.toString(),
+      'month': month.toString(),
+      'mapping': mapping.toString().replaceAll('{', '{').replaceAll(': ', '": "').replaceAll(', ', '", "').replaceAll('}', '"}'),
+      'files': multipartFiles,
+    });
+
+    // JSON encode mapping properly instead of Dart's toString()
+    formData.fields.removeWhere((f) => f.key == 'mapping');
+    formData.fields.add(MapEntry('mapping', _encodeMapping(mapping)));
+
+    final res = await _api.dio.post(ApiConstants.payslipsBulk, data: formData);
+    if (res.data is Map) return Map<String, dynamic>.from(res.data);
+    throw ApiException('Unexpected response from bulk upload.');
+  }
+
+  String _encodeMapping(Map<String, String> m) {
+    final parts = m.entries.map((e) => '"${e.key.replaceAll('"', '\\"')}":"${e.value.replaceAll('"', '\\"')}"').join(',');
+    return '{$parts}';
+  }
 }

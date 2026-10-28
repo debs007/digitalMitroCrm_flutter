@@ -9,6 +9,7 @@ class EmployeeModel {
   final String avatar;
   final String shiftType; // "Day" | "Night"
   final String employeeType; // "Full-Time" | "Part-Time"
+  final String jobDescription;
   final int callbackCount;
   final int saleCount;
   final int transferCount;
@@ -22,6 +23,7 @@ class EmployeeModel {
     required this.avatar,
     required this.shiftType,
     required this.employeeType,
+    this.jobDescription = '',
     required this.callbackCount,
     required this.saleCount,
     required this.transferCount,
@@ -37,10 +39,33 @@ class EmployeeModel {
       avatar: json['avatar']?.toString() ?? '',
       shiftType: json['type']?.toString() ?? 'Day',
       employeeType: json['employeeType']?.toString() ?? 'Full-Time',
+      jobDescription: json['jobDescription']?.toString() ?? '',
       callbackCount: (json['callBackCount'] is num) ? (json['callBackCount'] as num).toInt() : 0,
       saleCount: (json['saleCount'] is num) ? (json['saleCount'] as num).toInt() : 0,
       transferCount: (json['transferCount'] is num) ? (json['transferCount'] as num).toInt() : 0,
       isDeleted: json['isDeleted'] == true,
+    );
+  }
+
+  /// Merges in just the fields the edit form can change, leaving
+  /// aggregate/derived fields (avatar, counts, isDeleted) untouched — the
+  /// PUT /auth/:id response doesn't carry those (they're only computed by
+  /// the list endpoint), so blindly replacing the whole model with it
+  /// would zero them out.
+  EmployeeModel copyWithEditableFields(EmployeeModel updated) {
+    return EmployeeModel(
+      id: id,
+      name: updated.name,
+      email: updated.email,
+      phone: updated.phone,
+      avatar: avatar,
+      shiftType: updated.shiftType,
+      employeeType: updated.employeeType,
+      jobDescription: updated.jobDescription,
+      callbackCount: callbackCount,
+      saleCount: saleCount,
+      transferCount: transferCount,
+      isDeleted: isDeleted,
     );
   }
 }

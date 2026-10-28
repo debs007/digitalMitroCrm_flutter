@@ -3,19 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/utils/ist_time.dart';
 import '../../models/employee_model.dart';
 import '../../models/attendance_model.dart';
 import '../../models/lead_model.dart';
 import '../../models/payslip_salary_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/employee_service.dart';
 import '../../services/attendance_service.dart';
 import '../../services/lead_service.dart';
 import '../../services/payslip_salary_service.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/state_views.dart';
+import 'edit_employee_screen.dart';
 
 /// Mirrors the web app's Activity → EmployeeDashboard flow: tap an
 /// employee to see their attendance, leads, and payslips — not just the
@@ -30,10 +34,12 @@ class EmployeeDetailScreen extends StatefulWidget {
 
 class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late EmployeeModel _employee;
 
   @override
   void initState() {
     super.initState();
+    _employee = widget.employee;
     _tabController = TabController(length: 6, vsync: this);
   }
 
@@ -43,18 +49,37 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> with Single
     super.dispose();
   }
 
+  Future<void> _openEdit() async {
+    final updated = await Navigator.of(context).push<EmployeeModel>(
+      MaterialPageRoute(builder: (_) => EditEmployeeScreen(employee: _employee)),
+    );
+    if (updated != null && mounted) {
+      setState(() => _employee = _employee.copyWithEditableFields(updated));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final canEdit = user?.isSuperAdmin == true || user?.can('employee', 'edit') == true;
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
           children: [
-            AppAvatar(name: widget.employee.name, imageUrl: widget.employee.avatar, size: 34),
+            AppAvatar(name: _employee.name, imageUrl: _employee.avatar, size: 34),
             const SizedBox(width: 10),
-            Expanded(child: Text(widget.employee.name, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis)),
+            Expanded(child: Text(_employee.name, style: const TextStyle(fontSize: 16), overflow: TextOverflow.ellipsis)),
           ],
         ),
+        actions: [
+          if (canEdit)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit employee',
+              onPressed: _openEdit,
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -74,12 +99,12 @@ class _EmployeeDetailScreenState extends State<EmployeeDetailScreen> with Single
       body: TabBarView(
         controller: _tabController,
         children: [
-          _OverviewTab(employee: widget.employee),
-          _EmployeeAttendanceTab(employeeId: widget.employee.id),
-          _LeadsTab(type: LeadType.callback, employeeId: widget.employee.id),
-          _LeadsTab(type: LeadType.sale, employeeId: widget.employee.id),
-          _LeadsTab(type: LeadType.transfer, employeeId: widget.employee.id),
-          _PayslipsTab(employee: widget.employee),
+          _OverviewTab(employee: _employee),
+          _EmployeeAttendanceTab(employeeId: _employee.id),
+          _LeadsTab(type: LeadType.callback, employeeId: _employee.id),
+          _LeadsTab(type: LeadType.sale, employeeId: _employee.id),
+          _LeadsTab(type: LeadType.transfer, employeeId: _employee.id),
+          _PayslipsTab(employee: _employee),
         ],
       ),
     );
@@ -152,6 +177,7 @@ class _OverviewTabState extends State<_OverviewTab> {
                 _infoRow('Phone', e.phone),
                 _infoRow('Shift', '${e.shiftType} shift'),
                 _infoRow('Employment', e.employeeType),
+                _infoRow('Job description', e.jobDescription),
               ],
             ),
           ),
@@ -308,14 +334,14 @@ class _EmployeeAttendanceTabState extends State<_EmployeeAttendanceTab> {
                                               Icon(Icons.login, size: 12, color: AppColors.success),
                                               const SizedBox(width: 3),
                                               Text(
-                                                r.punchIn != null ? DateFormat('hh:mm a').format(r.punchIn!) : '--:--',
+                                                r.punchIn != null ? DateFormat('hh:mm a').format(r.punchIn!.toIst) : '--:--',
                                                 style: AppText.caption,
                                               ),
                                               const SizedBox(width: 12),
                                               Icon(Icons.logout, size: 12, color: AppColors.danger),
                                               const SizedBox(width: 3),
                                               Text(
-                                                r.punchOut != null ? DateFormat('hh:mm a').format(r.punchOut!) : '--:--',
+                                                r.punchOut != null ? DateFormat('hh:mm a').format(r.punchOut!.toIst) : '--:--',
                                                 style: AppText.caption,
                                               ),
                                             ],

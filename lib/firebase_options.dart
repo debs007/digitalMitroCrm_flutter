@@ -39,7 +39,7 @@ class DefaultFirebaseOptions {
   );
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCRy4HuucUMOgYVBlK7d45gd9XdbMkVcLw',
-    appId: '1:8013696627:ios:dc6ace718b74477949a406',
+    appId: '1:8013696627:ios:ee6726d05fa2cfc849a406',
     messagingSenderId: '8013696627',
     projectId: 'digital-mitro-85ffd',
     storageBucket: 'digital-mitro-85ffd.firebasestorage.app',

@@ -5,6 +5,16 @@ class ApiConstants {
 
   static const String baseUrl = 'https://api.digitalmitro.info';
 
+  /// Locally-stored files (e.g. channel task reports) come back from the
+  /// API as a root-relative path like "/uploads/reports/x.pdf" rather than
+  /// a full URL. Already-absolute URLs (Cloudinary, etc.) pass through
+  /// unchanged.
+  static String resolveFileUrl(String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final path = url.startsWith('/') ? url : '/$url';
+    return '$baseUrl$path';
+  }
+
   // ── Mobile (built specifically for Flutter) ──────────────────────────────
   static const String mobileLogin = '/mobile/login';
   static const String mobileProfile = '/mobile/profile';
@@ -21,6 +31,13 @@ class ApiConstants {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   static const String authAll = '/auth/all';
+
+  // ── Client self-service auth (signup + forgot/reset password) ────────────
+  // Admin/Employee accounts are provisioned by a SuperAdmin — only Client
+  // has self-service signup and password reset.
+  static const String clientSignup = '/client/signup';
+  static const String clientForgotPassword = '/client/forgot-password';
+  static const String clientResetPassword = '/client/reset-password';
 
   // ── Attendance ────────────────────────────────────────────────────────────
   static const String punchIn = '/attendance/punch-in';

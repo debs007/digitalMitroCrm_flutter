@@ -51,21 +51,35 @@ class EmployeeService {
     };
   }
 
-  Future<void> update({
+  /// GET /auth/:id returns the raw user document directly (not wrapped) —
+  /// used to load fresh, complete details (incl. jobDescription) right
+  /// before editing, same as the web app's edit page does.
+  Future<EmployeeModel> getById(String id) async {
+    final res = await _api.get(ApiConstants.employeeById(id));
+    return EmployeeModel.fromJson(res);
+  }
+
+  /// PUT /auth/:id returns the updated user document directly (not
+  /// wrapped) — same res.json(updatedUser) shape as getById — so the
+  /// caller can refresh its view without a second round-trip.
+  Future<EmployeeModel> update({
     required String id,
     String? name,
     String? email,
     String? phone,
     String? shiftType,
     String? employeeType,
+    String? jobDescription,
   }) async {
-    await _api.put(ApiConstants.employeeById(id), data: {
+    final res = await _api.put(ApiConstants.employeeById(id), data: {
       if (name != null) 'name': name,
       if (email != null) 'email': email,
       if (phone != null) 'phone': phone,
       if (shiftType != null) 'shift': shiftType,
       if (employeeType != null) 'employeeType': employeeType,
+      if (jobDescription != null) 'jobDescription': jobDescription,
     });
+    return EmployeeModel.fromJson(res);
   }
 
   Future<void> delete(String id) async {

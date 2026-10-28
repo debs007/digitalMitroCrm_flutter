@@ -13,6 +13,7 @@ import '../../services/profile_service.dart';
 import '../../services/upload_service.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/chat_input_bar.dart';
+import '../../widgets/date_pill.dart';
 import '../../widgets/message_bubble.dart';
 import '../../widgets/pinned_banner.dart';
 import '../../widgets/state_views.dart';
@@ -401,7 +402,14 @@ class _DmChatScreenState extends State<DmChatScreen> {
                               final isSelf = msg.senderId == _myId;
                               final bubbleKey = _bubbleKeys.putIfAbsent(msg.id, () => GlobalKey());
                               final isHighlighted = _highlightedMessageId == msg.id;
-                              return AnimatedContainer(
+                              // _messages is newest-first (index 0 = latest) to match the
+                              // reverse:true ListView, so the "previous" message chronologically
+                              // is the *next* index — the oldest loaded message (last index)
+                              // always gets a pill, same as the web app's index===0 rule on its
+                              // oldest-first array.
+                              final showDatePill = index == _messages.length - 1 ||
+                                  DatePill.isDifferentDay(msg.createdAt, _messages[index + 1].createdAt);
+                              final bubble = AnimatedContainer(
                                 key: bubbleKey,
                                 duration: const Duration(milliseconds: 300),
                                 color: isHighlighted ? AppColors.warning.withValues(alpha: 0.15) : Colors.transparent,
@@ -417,6 +425,11 @@ class _DmChatScreenState extends State<DmChatScreen> {
                                 onTogglePin: () => _handleTogglePin(msg),
                                 onReact: (emoji) => _handleToggleReaction(msg, emoji),
                                 ),
+                              );
+                              if (!showDatePill) return bubble;
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [DatePill(date: msg.createdAt), bubble],
                               );
                             },
                           ),

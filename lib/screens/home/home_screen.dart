@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/socket_service.dart';
+import '../../core/utils/ist_time.dart';
 import '../../models/channel_model.dart';
 import '../../models/dashboard_model.dart';
 import '../../models/attendance_model.dart';
@@ -544,8 +545,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPunchCard() {
     final attendance  = _dashboard?.todayAttendance;
     final isPunchedIn = attendance?.isPunchedIn ?? false;
-    final punchInTime  = attendance?.punchIn  != null ? DateFormat('hh:mm a').format(attendance!.punchIn!)  : '--:--';
-    final punchOutTime = attendance?.punchOut != null ? DateFormat('hh:mm a').format(attendance!.punchOut!) : '--:--';
+    final punchInTime  = attendance?.punchIn  != null ? DateFormat('hh:mm a').format(attendance!.punchIn!.toIst)  : '--:--';
+    final punchOutTime = attendance?.punchOut != null ? DateFormat('hh:mm a').format(attendance!.punchOut!.toIst) : '--:--';
 
     return Container(
       padding: const EdgeInsets.all(18),

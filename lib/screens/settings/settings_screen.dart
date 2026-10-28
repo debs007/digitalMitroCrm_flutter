@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
@@ -222,10 +224,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: const Text('Log out'),
               ),
             ),
+
+            const SizedBox(height: 28),
+            Text('Legal', style: AppText.label),
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(color: AppColors.neutralBg, borderRadius: BorderRadius.circular(14)),
+              child: Column(
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('Privacy Policy'),
+                    trailing: const Icon(Icons.open_in_new, size: 16),
+                    onTap: () => _openLegalPage('/privacy-policy'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text('Terms & Conditions'),
+                    trailing: const Icon(Icons.open_in_new, size: 16),
+                    onTap: () => _openLegalPage('/terms-and-conditions'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                    title: const Text('Request Account Deletion'),
+                    trailing: const Icon(Icons.open_in_new, size: 16),
+                    onTap: () => _openLegalPage('/delete-account'),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _openLegalPage(String path) async {
+    final uri = Uri.parse('${ApiConstants.baseUrl}$path');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open this page. Visit ${uri.toString()} in a browser.')),
+      );
+    }
   }
 
   Widget _buildThemeToggle() {

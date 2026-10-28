@@ -5,6 +5,13 @@ that powers CRMAdmin / CRMEmployees / CRMClient on the web.
 
 Built against **Flutter 3.41.6**.
 
+### Project Screenshots
+![(Screen shot 1)](screenshots/dmsc1.jpg)
+
+![(Screen shot 2)](screenshots/dmsc2.jpg)
+
+![(Screen shot 3)](screenshots/dmsc3.jpg)
+
 ## 1. Setup
 
 ```bash

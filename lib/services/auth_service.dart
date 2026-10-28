@@ -32,6 +32,42 @@ class AuthService {
     return AppUser.fromJson(userJson, userType);
   }
 
+  /// Self-service signup — Client accounts only. Admin/Employee accounts
+  /// are provisioned by a SuperAdmin, so there's no equivalent for them.
+  /// No OTP verification for signup, unlike Admin login.
+  Future<void> clientSignUp({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    await _api.post(
+      ApiConstants.clientSignup,
+      data: {'name': name, 'email': email, 'password': password},
+    );
+  }
+
+  /// Step 1 of Client password reset — emails a 6-digit OTP. Calling this
+  /// again (e.g. "Resend") simply issues a fresh OTP; there's no separate
+  /// resend endpoint.
+  Future<void> requestClientPasswordReset({required String email}) async {
+    await _api.post(
+      ApiConstants.clientForgotPassword,
+      data: {'email': email},
+    );
+  }
+
+  /// Step 2 — verifies the OTP and sets the new password in one call.
+  Future<void> resetClientPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    await _api.post(
+      ApiConstants.clientResetPassword,
+      data: {'email': email, 'otp': otp, 'newPassword': newPassword},
+    );
+  }
+
   /// Restores a session from secure storage on app start, if any.
   Future<AppUser?> restoreSession() async {
     final token = await SecureStorage.instance.getToken();

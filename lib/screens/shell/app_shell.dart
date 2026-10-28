@@ -102,33 +102,46 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
+  /// Loads a custom footer icon from assets/images/. Falls back to the
+  /// matching Material icon (the current look) if the file hasn't been
+  /// added yet or fails to load, so the nav bar never shows a broken-image
+  /// placeholder while custom art is still being swapped in.
+  Widget _navIcon(String assetName, IconData fallback, double size) {
+    return Image.asset(
+      'assets/images/$assetName',
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) => Icon(fallback, size: size),
+    );
+  }
+
   List<BottomNavigationBarItem> _buildItems(NavProvider nav) {
     return [
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined, size: 24),
-        activeIcon: Icon(Icons.home_rounded, size: 26),
+      BottomNavigationBarItem(
+        icon: _navIcon('nav_home_inactive.png', Icons.home_outlined, 24),
+        activeIcon: _navIcon('nav_home_active.png', Icons.home_rounded, 26),
         label: 'Home',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.fact_check_outlined, size: 24),
-        activeIcon: Icon(Icons.fact_check_rounded, size: 26),
+      BottomNavigationBarItem(
+        icon: _navIcon('nav_tasks_inactive.png', Icons.fact_check_outlined, 24),
+        activeIcon: _navIcon('nav_tasks_active.png', Icons.fact_check_rounded, 26),
         label: 'Tasks',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.event_available_outlined, size: 24),
-        activeIcon: Icon(Icons.event_available_rounded, size: 26),
+      BottomNavigationBarItem(
+        icon: _navIcon('nav_attendance_inactive.png', Icons.event_available_outlined, 24),
+        activeIcon: _navIcon('nav_attendance_active.png', Icons.event_available_rounded, 26),
         label: 'Attendance',
       ),
       BottomNavigationBarItem(
         icon: Badge(
           isLabelVisible: nav.showChatBadge,
           label: Text(nav.chatUnreadCount > 99 ? '99+' : nav.chatUnreadCount.toString()),
-          child: const Icon(Icons.forum_outlined, size: 24),
+          child: _navIcon('nav_chat_inactive.png', Icons.forum_outlined, 24),
         ),
         activeIcon: Badge(
           isLabelVisible: nav.showChatBadge,
           label: Text(nav.chatUnreadCount > 99 ? '99+' : nav.chatUnreadCount.toString()),
-          child: const Icon(Icons.forum_rounded, size: 26),
+          child: _navIcon('nav_chat_active.png', Icons.forum_rounded, 26),
         ),
         label: 'Chat',
       ),
@@ -173,7 +186,13 @@ class _AppShellState extends State<AppShell> {
                       ),
                       Container(width: 1, height: 32, color: AppColors.divider),
                       IconButton(
-                        icon: Icon(Icons.menu_rounded, size: 26, color: AppColors.textSecondary),
+                        icon: Image.asset(
+                          'assets/images/nav_menu.png',
+                          width: 26,
+                          height: 26,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Icon(Icons.menu_rounded, size: 26, color: AppColors.textSecondary),
+                        ),
                         onPressed: nav.openDrawer,
                         tooltip: 'Menu',
                       ),

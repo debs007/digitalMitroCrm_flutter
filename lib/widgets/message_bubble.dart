@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/constants/api_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/file_download_helper.dart';
 import '../models/message_model.dart';
@@ -17,6 +18,23 @@ bool _isVideoUrl(String url) =>
     RegExp(r'\.(mp4|mov|avi|mkv|webm)(\?.*)?$', caseSensitive: false).hasMatch(url);
 bool _isPdfUrl(String url) =>
     RegExp(r'\.pdf(\?.*)?$', caseSensitive: false).hasMatch(url);
+bool _isDocUrl(String url) => RegExp(
+      r'\.(pdf|docx?|xlsx?|pptx?|csv|txt|zip|rar)(\?.*)?$',
+      caseSensitive: false,
+    ).hasMatch(url);
+
+/// True when a *system* message's text is actually a file path/URL rather
+/// than a plain notice (e.g. "X joined the channel"). Used to give channel
+/// task reports — posted as a system message whose `message` field is the
+/// report's file path — a proper file chip instead of a plain-text pill.
+/// Guarded by the leading "/" or "http" so ordinary sentences are never
+/// misclassified — free-form text never starts with either.
+bool _looksLikeFileUrl(String value) {
+  if (!(value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/'))) {
+    return false;
+  }
+  return _isImageUrl(value) || _isVideoUrl(value) || _isDocUrl(value);
+}
 
 // Small curated set for quick message reactions — matches the web app's
 // QUICK_REACTIONS so the experience is consistent across platforms.
@@ -107,6 +125,12 @@ class MessageBubble extends StatelessWidget {
     if (message.isSystem) {
       if (message.taskSnapshot != null) {
         return TaskMessageCard(message: message);
+      }
+      // A monthly/task report is posted as a system message whose `message`
+      // field is the report's file path (not a human-written notice) — show
+      // it as a downloadable file chip instead of the raw path as text.
+      if (_looksLikeFileUrl(message.message)) {
+        return _buildSystemFileMessage(context, message.message);
       }
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -310,9 +334,10 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildAttachments(BuildContext context) {
-    final images = message.attachments.where(_isImageUrl).toList();
-    final videos = message.attachments.where(_isVideoUrl).toList();
-    final otherFiles = message.attachments
+    final attachments = message.attachments.map(ApiConstants.resolveFileUrl).toList();
+    final images = attachments.where(_isImageUrl).toList();
+    final videos = attachments.where(_isVideoUrl).toList();
+    final otherFiles = attachments
         .where((a) => !_isImageUrl(a) && !_isVideoUrl(a))
         .toList();
 
@@ -434,6 +459,81 @@ class MessageBubble extends StatelessWidget {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  /// Renders a system message whose text is actually a file path (e.g. a
+  /// monthly/task report) as a tappable chip — PDF/image tap into the
+  /// existing in-app preview screens, other types launch externally — with
+  /// a download button, instead of showing the raw path as plain text.
+  Widget _buildSystemFileMessage(BuildContext context, String rawUrl) {
+    final url = ApiConstants.resolveFileUrl(rawUrl);
+    // Prefer the human title carried in replyPreview.message (e.g. "July
+    // 2026 task report") over the disk filename, which is prefixed with
+    // the channel id and a timestamp.
+    final label = message.replyPreview?.message;
+    final uri = Uri.tryParse(url);
+    final diskName = (uri?.pathSegments.isNotEmpty ?? false) ? uri!.pathSegments.last : 'Report';
+    final displayName = (label != null && label.isNotEmpty) ? label : diskName;
+    final isPdf = _isPdfUrl(url);
+    final isImg = _isImageUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      alignment: Alignment.center,
+      child: GestureDetector(
+        onTap: () {
+          if (isPdf) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => PdfPreviewScreen(url: url, title: displayName)),
+            );
+          } else if (isImg) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ImagePreviewScreen(imageUrl: url)),
+            );
+          } else {
+            final launchUri = Uri.tryParse(url);
+            if (launchUri != null) launchUrl(launchUri, mode: LaunchMode.externalApplication);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.neutralBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isPdf
+                    ? Icons.picture_as_pdf_outlined
+                    : (isImg ? Icons.image_outlined : Icons.insert_drive_file_outlined),
+                size: 18,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.download_outlined, size: 16),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                onPressed: () => downloadAttachment(context, url, diskName),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

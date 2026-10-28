@@ -4,6 +4,7 @@ import '../../core/network/socket_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/utils/ist_time.dart';
 import '../../models/attendance_model.dart';
 import '../../services/attendance_service.dart';
 import '../../widgets/app_avatar.dart';
@@ -223,8 +224,8 @@ class _AdminAttendanceViewState extends State<AdminAttendanceView> {
                 Text(r.userName.isNotEmpty ? r.userName : 'Unknown', style: AppText.bodyLarge),
                 if (r.punchIn != null)
                   Text(
-                    'In: ${DateFormat('hh:mm a').format(r.punchIn!)}'
-                    '${r.punchOut != null ? '  Out: ${DateFormat('hh:mm a').format(r.punchOut!)}' : ''}',
+                    'In: ${DateFormat('hh:mm a').format(r.punchIn!.toIst)}'
+                    '${r.punchOut != null ? '  Out: ${DateFormat('hh:mm a').format(r.punchOut!.toIst)}' : ''}',
                     style: AppText.caption,
                   ),
               ],

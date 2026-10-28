@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path_provider/path_provider.dart';
 import '../core/navigation/navigation_service.dart';
 import '../models/lead_model.dart';
 import '../screens/chat/dm_chat_screen.dart';
@@ -118,15 +121,22 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    const androidDetails = AndroidNotificationDetails(
+    final imageUrl = message.data['imageUrl'];
+    final iosAttachment = await _downloadForIosAttachment(imageUrl);
+    final androidLargeIcon = await _downloadForAndroidIcon(imageUrl);
+
+    final androidDetails = AndroidNotificationDetails(
       'digital_mitro_default',
       'Digital Mitro',
       channelDescription: 'Messages, tasks, concerns, and callbacks',
       importance: Importance.high,
       priority: Priority.high,
+      largeIcon: androidLargeIcon,
     );
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    final iosDetails = DarwinNotificationDetails(
+      attachments: iosAttachment != null ? [iosAttachment] : null,
+    );
+    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     // Encode the data payload into a flat "k=v|k=v" string since
     // flutter_local_notifications only accepts a single String payload.
@@ -141,14 +151,75 @@ class PushNotificationService {
     );
   }
 
+  /// Fetches raw bytes for the Android large icon (shown next to the
+  /// notification text) — no temp file needed, flutter_local_notifications
+  /// accepts bytes directly on Android. Returns null (falls back to the
+  /// default app icon) on any failure or missing URL, and gives up after 3
+  /// seconds rather than delay the notification for a slow image host.
+  Future<ByteArrayAndroidBitmap?> _downloadForAndroidIcon(String? url) async {
+    if (url == null || url.isEmpty) return null;
+    try {
+      final dio = Dio();
+      final response = await dio.get<List<int>>(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          sendTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+        ),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) return null;
+      return ByteArrayAndroidBitmap(Uint8List.fromList(bytes));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// iOS local-notification attachments need an actual file on disk, unlike
+  /// Android which accepts raw bytes — so this downloads to a temp file.
+  /// Note this only covers the *foreground* case (app open, this code
+  /// actually runs). A background/killed notification is drawn entirely by
+  /// iOS itself from the raw push payload, and reliably showing the image
+  /// there needs a Notification Service Extension - a small separate native
+  /// iOS target that intercepts the push and attaches the image before
+  /// display. That's an Xcode project change (new target, entitlements,
+  /// Swift code, App Group to share the download) rather than a Flutter
+  /// code change, so it isn't included here.
+  Future<DarwinNotificationAttachment?> _downloadForIosAttachment(String? url) async {
+    if (!Platform.isIOS || url == null || url.isEmpty) return null;
+    try {
+      final dio = Dio();
+      final response = await dio.get<List<int>>(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          sendTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+        ),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty) return null;
+
+      final dir = await getTemporaryDirectory();
+      final ext = url.contains('.png') ? 'png' : 'jpg';
+      final file = File('${dir.path}/push_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      await file.writeAsBytes(bytes);
+      return DarwinNotificationAttachment(file.path);
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _handleTap(Map<String, dynamic> data) {
     final type = data['type']?.toString();
     switch (type) {
       case 'dm':
         final senderId = data['senderId']?.toString();
         final senderName = data['senderName']?.toString() ?? 'Chat';
+        final senderAvatar = data['imageUrl']?.toString() ?? '';
         if (senderId != null && senderId.isNotEmpty) {
-          NavigationService.push(DmChatScreen(partnerId: senderId, partnerName: senderName, partnerAvatar: ''));
+          NavigationService.push(DmChatScreen(partnerId: senderId, partnerName: senderName, partnerAvatar: senderAvatar));
         }
         break;
 

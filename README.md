@@ -6,12 +6,11 @@ that powers CRMAdmin / CRMEmployees / CRMClient on the web.
 Built against **Flutter 3.41.6**.
 
 ### Project Screenshots
-![(Screen shot 1)](screenshots/dmsc1.jpg)
-
-![(Screen shot 2)](screenshots/dmsc2.jpg)
-
-![(Screen shot 3)](screenshots/dmsc3.jpg)
-
+<p align="center">
+<img src="screenshots/dmsc1.jpg" width="300">
+<img src="screenshots/dmsc2.jpg" width="300">
+<img src="screenshots/dmsc3.jpg" width="300">
+</p>
 ## 1. Setup
 
 ```bash
